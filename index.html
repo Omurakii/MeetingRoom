@@ -6,7 +6,9 @@
 <title>회의실 예약</title>
 
 <style>
-body { font-family: Arial; padding:20px; }
+body { font-family: Arial; padding:20px; display:flex; gap:20px; }
+.left { flex:2; }
+.right { flex:1; }
 table { border-collapse: collapse; width:100%; margin-top:20px; }
 th, td { border:1px solid #ccc; padding:8px; text-align:center; }
 th { background:#f0f0f0; }
@@ -17,7 +19,8 @@ input, select, button { padding:6px; margin:4px; }
 
 <body>
 
-<h2>📅 회의실 예약 (공유 버전)</h2>
+<div class="left">
+<h2>📅 회의실 예약 (공유)</h2>
 
 <label>날짜: <input type="date" id="date"></label>
 
@@ -29,37 +32,35 @@ input, select, button { padding:6px; margin:4px; }
 </select>
 </label>
 
-<label>Fresh:
-<select id="fresh">
-<option value="">-</option>
-<option>김철수</option><option>이영희</option><option>박민수</option>
-</select>
-</label>
-
-<label>Innovation:
-<select id="innovation">
-<option value="">-</option>
-<option>김철수</option><option>이영희</option><option>박민수</option>
-</select>
-</label>
+<label>Fresh: <input type="text" id="fresh"></label>
+<label>Innovation: <input type="text" id="innovation"></label>
 
 <button onclick="addReservation()">예약</button>
 
 <h3>📌 오늘 예약</h3>
-
 <table id="todayTable">
 <thead>
 <tr><th>시간</th><th>Fresh</th><th>Innovation</th><th>관리</th></tr>
 </thead>
 <tbody></tbody>
 </table>
+</div>
+
+<div class="right">
+<h3>📊 이번 주 예약</h3>
+<table id="weekTable">
+<thead>
+<tr><th>날짜</th><th>시간</th><th>Fresh</th><th>Innovation</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 너가 준 설정 그대로 적용
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
@@ -67,17 +68,14 @@ const firebaseConfig = {
   projectId: "meeting-room-9382e",
   storageBucket: "meeting-room-9382e.firebasestorage.app",
   messagingSenderId: "443110031923",
-  appId: "1:443110031923:web:9e3154876e475fc9225946",
-  measurementId: "G-XRQPQCVZQ1"
+  appId: "1:443110031923:web:9e3154876e475fc9225946"
 };
 
-// 초기화
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let reservations = [];
 
-// 🔥 예약 추가
 function addReservation() {
   const date = document.getElementById('date').value;
   const time = document.getElementById('time').value;
@@ -86,24 +84,21 @@ function addReservation() {
 
   if(!date) return alert('날짜 선택');
 
-  db.ref('reservations').push({
-    date, time, fresh, innovation
-  });
+  db.ref('reservations').push({ date, time, fresh, innovation });
 }
 
-// 🔥 삭제
 function deleteReservation(key) {
   db.ref('reservations/' + key).remove();
 }
 
-// 🔥 실시간 데이터 받기 (핵심)
-db.ref('reservations').on('value', snapshot => {
+// 실시간
+ db.ref('reservations').on('value', snapshot => {
   const data = snapshot.val() || {};
   reservations = Object.entries(data).map(([key, value]) => ({ key, ...value }));
   renderToday();
+  renderWeek();
 });
 
-// 🔥 화면 렌더링
 function renderToday() {
   const today = new Date().toISOString().slice(0,10);
   const tbody = document.querySelector('#todayTable tbody');
@@ -113,7 +108,6 @@ function renderToday() {
 
   times.forEach(t => {
     const row = document.createElement('tr');
-
     const found = reservations.find(r => r.date === today && r.time === t);
 
     if(found) row.classList.add('reserved');
@@ -127,6 +121,34 @@ function renderToday() {
 
     tbody.appendChild(row);
   });
+}
+
+function renderWeek() {
+  const tbody = document.querySelector('#weekTable tbody');
+  tbody.innerHTML = '';
+
+  const today = new Date();
+  const weekDates = [];
+
+  for(let i=0;i<7;i++){
+    const d = new Date();
+    d.setDate(today.getDate() + i);
+    weekDates.push(d.toISOString().slice(0,10));
+  }
+
+  reservations
+    .filter(r => weekDates.includes(r.date))
+    .sort((a,b)=> a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+    .forEach(r => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${r.date}</td>
+        <td>${r.time}</td>
+        <td>${r.fresh}</td>
+        <td>${r.innovation}</td>
+      `;
+      tbody.appendChild(row);
+    });
 }
 </script>
 
