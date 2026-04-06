@@ -2,75 +2,69 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>아워홈 R&D 회의실 예약</title>
+<title>아워홈 R&D 회의실 예약 시스템</title>
 <style>
     body { font-family: 'Malgun Gothic', sans-serif; padding:15px; display:flex; gap:15px; background-color: #f4f7f9; color: #333; margin: 0; }
-    .left { flex:1.3; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); height: fit-content; }
-    .right { flex:2.7; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+    .left { flex:1.2; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); height: fit-content; }
+    .right { flex:2.8; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
     
-    h2 { margin-top: 0; margin-bottom: 5px; color: #1a1a1a; font-size: 1.2rem; }
-    .notice { font-size: 11px; color: #666; margin-bottom: 15px; display: block; }
-    
-    h3 { margin-top: 0; color: #1a1a1a; font-size: 1.1rem; }
-    h4 { margin: 15px 0 8px 0; padding-left: 10px; border-left: 5px solid #e76115; font-size: 14px; }
+    /* 회의실 선택기 스타일 */
+    .room-selector { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 20px; background: #eee; padding: 10px; border-radius: 8px; }
+    .room-selector span { font-size: 18px; font-weight: bold; color: #e76115; min-width: 120px; text-align: center; }
+    .nav-btn { cursor: pointer; font-size: 20px; background: none; border: none; color: #666; padding: 0 10px; }
+    .nav-btn:hover { color: #e76115; }
 
+    h2 { margin-top: 0; margin-bottom: 5px; color: #1a1a1a; font-size: 1.2rem; text-align: center; }
+    .notice { font-size: 11px; color: #666; margin-bottom: 15px; display: block; text-align: center; }
+    
     table { border-collapse: collapse; width:100%; margin-top: 5px; table-layout: fixed; background: white; }
-    th, td { border: 1px solid #e0e4e8; text-align: center; height: 28px; font-size: 11px; transition: 0.1s; position: relative; }
-    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    th, td { border: 1px solid #e0e4e8; text-align: center; height: 32px; font-size: 12px; }
+    th { background: #f8f9fa; font-weight: 600; }
     
     .highlight-col { border-left: 2px dashed #e76115 !important; border-right: 2px dashed #e76115 !important; background-color: #fffaf0; }
-    th.highlight-col { border-top: 2px dashed #e76115 !important; background-color: #ffe0cc !important; }
-    tr:last-child td.highlight-col { border-bottom: 2px dashed #e76115 !important; }
-
-    .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; }
-    td:hover { background-color: #f1f3f5; cursor: pointer; }
-
-    .week-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
-    .week-nav h3 { margin: 0; min-width: 150px; text-align: center; font-size: 16px; }
-
-    button { cursor: pointer; background-color: #e76115; color: white; border: none; border-radius: 5px; padding: 7px 12px; font-weight: bold; font-size: 12px; }
-    button:hover { background-color: #c54f0e; }
+    .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     
-    .btn-delete { background: #ff4d4f; padding: 2px 5px; font-size: 10px; border-radius: 3px; font-weight: normal; }
-    .btn-delete:hover { background: #d32f2f; }
-
-    input, select { padding: 6px; border: 1px solid #ced4da; border-radius: 5px; font-size: 12px; margin-right: 3px; }
-    hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
-    .time-select-group { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+    .week-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
+    button { cursor: pointer; background-color: #e76115; color: white; border: none; border-radius: 5px; padding: 7px 12px; font-weight: bold; }
+    
+    input, select { padding: 8px; border: 1px solid #ced4da; border-radius: 5px; font-size: 12px; }
+    .btn-delete { background: #ff4d4f; padding: 3px 6px; font-size: 11px; font-weight: normal; }
 </style>
 </head>
 <body>
 
 <div class="left">
-  <h2>🏢 아워홈 R&D 회의실 예약</h2>
-  <span class="notice">※ 업무명이 아닌 예약자 성함으로 예약 바랍니다.</span>
-  
-  <div style="display: flex; flex-direction: column; gap: 8px;">
-    <input type="date" id="date" style="width: 95%;">
-    <div class="time-select-group">
-        <span>시작:</span>
-        <select id="startTime" style="flex:1;" onchange="syncEndTime()"></select>
-        <span>종료:</span>
-        <select id="endTime" style="flex:1;"></select>
-    </div>
-    <div style="display: flex; gap: 4px;">
-        <input type="text" id="fresh" placeholder="Fresh 예약자" style="flex: 1;">
-        <input type="text" id="innovation" placeholder="Innovation 예약자" style="flex: 1;">
-    </div>
-    <button onclick="addReservation()" style="width: 100%;">예약하기</button>
+  <div class="room-selector">
+    <button class="nav-btn" onclick="changeRoom(-1)">◀</button>
+    <span id="currentRoomDisplay">Fresh</span>
+    <button class="nav-btn" onclick="changeRoom(1)">▶</button>
   </div>
   
-  <hr>
-  <h3>선택 날짜 현황 (<span id="selectedDateDisplay"></span>)</h3>
-  <div style="max-height: 500px; overflow-y: auto;">
+  <h2>🏢 회의실 예약</h2>
+  <span class="notice">※ 예약 시 설정한 비밀번호로만 삭제 가능합니다.</span>
+  
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <input type="date" id="date" style="width: 94%;">
+    <div style="display:flex; gap:5px;">
+        <select id="startTime" style="flex:1;" onchange="syncEndTime()"></select>
+        <select id="endTime" style="flex:1;"></select>
+    </div>
+    <div style="display: flex; gap: 5px;">
+        <input type="text" id="userName" placeholder="예약자 성함" style="flex: 1.5;">
+        <input type="password" id="userPw" placeholder="비번(4자리)" maxlength="4" style="flex: 1;">
+    </div>
+    <button onclick="addReservation()" style="width: 100%; padding: 10px;">예약하기</button>
+  </div>
+  
+  <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+  <h3 style="font-size:14px;">📅 <span id="roomSubTitle"></span> 현황 (<span id="selectedDateDisplay"></span>)</h3>
+  <div style="max-height: 400px; overflow-y: auto;">
       <table id="todayTable">
         <thead>
           <tr>
-            <th style="width:55px;">시간</th>
-            <th>Fresh</th>
-            <th style="width:40px;">관리</th>
-            <th>Innovation</th>
-            <th style="width:40px;">관리</th>
+            <th style="width:60px;">시간</th>
+            <th>예약자</th>
+            <th style="width:50px;">관리</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -81,13 +75,11 @@
 <div class="right">
   <div class="week-nav">
     <button onclick="prevWeek()">◀ 이전 주</button>
-    <h3 id="weekLabel"></h3>
+    <h3 id="weekLabel" style="margin:0; min-width:150px; text-align:center;"></h3>
     <button onclick="nextWeek()">다음 주 ▶</button>
   </div>
-  <h4>📍 Fresh 회의실</h4>
-  <table id="freshWeekTable"></table>
-  <h4>📍 Innovation 회의실</h4>
-  <table id="innovationWeekTable"></table>
+  <h4 id="weekTableTitle" style="margin:10px 0; color:#e76115;"></h4>
+  <table id="weekTable"></table>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -107,6 +99,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+const ROOMS = ["Fresh", "Innovation", "Healthy"];
+let roomIdx = 0;
 const TIME_SLOTS = [];
 for (let h = 8; h <= 17; h++) {
     for (let m of ["00", "30"]) {
@@ -122,13 +116,15 @@ const el = {
     date: document.getElementById('date'),
     startTime: document.getElementById('startTime'),
     endTime: document.getElementById('endTime'),
-    fresh: document.getElementById('fresh'),
-    innovation: document.getElementById('innovation'),
-    freshTable: document.getElementById('freshWeekTable'),
-    innovationTable: document.getElementById('innovationWeekTable'),
+    userName: document.getElementById('userName'),
+    userPw: document.getElementById('userPw'),
+    roomDisplay: document.getElementById('currentRoomDisplay'),
+    weekTable: document.getElementById('weekTable'),
     todayTbody: document.querySelector('#todayTable tbody'),
     weekLabel: document.getElementById('weekLabel'),
-    dateDisplay: document.getElementById('selectedDateDisplay')
+    dateDisplay: document.getElementById('selectedDateDisplay'),
+    roomSubTitle: document.getElementById('roomSubTitle'),
+    weekTableTitle: document.getElementById('weekTableTitle')
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -141,17 +137,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const todayStr = getLocalDateString(new Date());
     el.date.value = todayStr;
     el.dateDisplay.innerText = todayStr;
+    
     el.date.onchange = () => {
         el.dateDisplay.innerText = el.date.value;
         currentWeekStart = getStartOfWeek(new Date(el.date.value));
         renderAll();
     };
+
     db.ref('reservations').on('value', snapshot => {
         const data = snapshot.val();
         reservations = data ? Object.entries(data).map(([k, v]) => ({ key: k, ...v })) : [];
         renderAll(); 
     });
 });
+
+function changeRoom(dir) {
+    roomIdx = (roomIdx + dir + ROOMS.length) % ROOMS.length;
+    renderAll();
+}
 
 function syncEndTime() {
     const startVal = el.startTime.value;
@@ -162,7 +165,6 @@ function syncEndTime() {
         opt.value = t; opt.innerText = t;
         el.endTime.appendChild(opt);
     });
-    el.endTime.selectedIndex = 0;
 }
 
 function getLocalDateString(date) {
@@ -180,113 +182,77 @@ function getStartOfWeek(date) {
 }
 
 function renderAll() {
-    renderSelectedDate();
-    renderWeekTable();
+    const roomName = ROOMS[roomIdx];
+    el.roomDisplay.innerText = roomName;
+    el.roomSubTitle.innerText = roomName;
+    el.weekTableTitle.innerText = `📍 ${roomName} 회의실 주간 일정`;
+    
+    renderSelectedDate(roomName);
+    renderWeekTable(roomName);
 }
 
-function renderSelectedDate() {
-    if (!el.todayTbody) return;
+function renderSelectedDate(roomName) {
     el.todayTbody.innerHTML = '';
-    const displaySlots = TIME_SLOTS.slice(0, -1);
-    displaySlots.forEach(t => {
-        const found = reservations.find(r => r.date === el.date.value && r.time === t);
+    TIME_SLOTS.slice(0, -1).forEach(t => {
+        const found = reservations.find(r => r.date === el.date.value && r.time === t && r.room === roomName);
         const tr = document.createElement('tr');
-        const freshName = found?.fresh || '';
-        const innovName = found?.innovation || '';
+        const name = found?.name || '';
         tr.innerHTML = `
             <td style="background:#f9f9f9; font-weight:bold;">${t}</td>
-            <td class="${freshName ? 'reserved' : ''}">${freshName}</td>
-            <td>${freshName ? `<button class="btn-delete" onclick="deleteBatch('${found.key}', 'fresh')">삭제</button>` : ''}</td>
-            <td class="${innovName ? 'reserved' : ''}">${innovName}</td>
-            <td>${innovName ? `<button class="btn-delete" onclick="deleteBatch('${found.key}', 'innovation')">삭제</button>` : ''}</td>
+            <td class="${name ? 'reserved' : ''}">${name}</td>
+            <td>${name ? `<button class="btn-delete" onclick="handleDelete('${found.key}')">삭제</button>` : ''}</td>
         `;
         el.todayTbody.appendChild(tr);
     });
 }
 
 async function addReservation() {
+    const room = ROOMS[roomIdx];
     const date = el.date.value;
     const startT = el.startTime.value;
     const endT = el.endTime.value;
-    const fresh = el.fresh.value.trim();
-    const innovation = el.innovation.value.trim();
-    if (!fresh && !innovation) return alert("예약자 이름을 입력해 주세요.");
+    const name = el.userName.value.trim();
+    const pw = el.userPw.value.trim();
+
+    if (!name || pw.length < 4) return alert("성함과 비밀번호 4자리를 모두 입력해주세요.");
     
     const startIdx = TIME_SLOTS.indexOf(startT);
     const endIdx = TIME_SLOTS.indexOf(endT);
     const targetSlots = TIME_SLOTS.slice(startIdx, endIdx);
-    const groupId = Date.now(); 
+    const gid = Date.now(); 
 
     for (let t of targetSlots) {
-        const existing = reservations.find(r => r.date === date && r.time === t);
-        if (existing) {
-            if ((fresh && existing.fresh) || (innovation && existing.innovation)) {
-                alert(`이미 예약된 시간대가 포함되어 있습니다. (${t})`);
-                return;
-            }
+        if (reservations.find(r => r.date === date && r.time === t && r.room === room)) {
+            alert(`이미 예약된 시간대가 포함되어 있습니다. (${t})`);
+            return;
         }
     }
 
     for (let t of targetSlots) {
-        const existing = reservations.find(r => r.date === date && r.time === t);
-        let newData = existing ? { ...existing } : { date, time: t, fresh: '', innovation: '' };
-        if (fresh) { newData.fresh = fresh; newData.freshGid = groupId; }
-        if (innovation) { newData.innovation = innovation; newData.innovGid = groupId; }
-        if (existing) await db.ref('reservations/' + existing.key).remove();
-        delete newData.key;
-        await db.ref('reservations').push(newData);
+        await db.ref('reservations').push({ room, date, time: t, name, pw, gid });
     }
-    el.fresh.value = ''; el.innovation.value = ''; alert("예약되었습니다.");
+    el.userName.value = ''; el.userPw.value = ''; alert("예약 완료!");
 }
 
-// 💡 삭제 질문 분기 로직 업데이트
-async function deleteBatch(key, type) {
+async function handleDelete(key) {
     const target = reservations.find(r => r.key === key);
     if (!target) return;
-    const gid = type === 'fresh' ? target.freshGid : target.innovGid;
-    
-    // 동일 그룹 ID를 가진 예약들 필터링
-    const targetsToDelete = reservations.filter(r => (type === 'fresh' ? r.freshGid : r.innovGid) === gid && (gid !== undefined));
-    
-    // 질문 내용 결정
-    let confirmMsg = "해당 회의실 예약을 취소하시겠습니까?"; // 기본 메시지
-    if (targetsToDelete.length > 1) {
-        confirmMsg = "연결된 모든 시간 예약을 일괄 취소하시겠습니까?";
-    }
 
-    if (!confirm(confirmMsg)) return;
+    const inputPw = prompt("예약 시 설정한 비밀번호 4자리를 입력하세요.");
+    if (inputPw !== target.pw) return alert("비밀번호가 일치하지 않습니다.");
 
-    if (targetsToDelete.length <= 1) {
-        // 단일 건 삭제
-        let updateData = { ...target };
-        if (type === 'fresh') { updateData.fresh = ''; delete updateData.freshGid; }
-        else { updateData.innovation = ''; delete updateData.innovGid; }
-        
-        await db.ref('reservations/' + key).remove();
-        if (updateData.fresh || updateData.innovation) {
-            delete updateData.key;
-            await db.ref('reservations').push(updateData);
-        }
-    } else {
-        // 일괄 건 삭제
-        for (let item of targetsToDelete) {
-            let updateData = { ...item };
-            if (type === 'fresh') { updateData.fresh = ''; delete updateData.freshGid; }
-            else { updateData.innovation = ''; delete updateData.innovGid; }
-            await db.ref('reservations/' + item.key).remove();
-            if (updateData.fresh || updateData.innovation) {
-                delete updateData.key;
-                await db.ref('reservations').push(updateData);
-            }
-        }
+    const related = reservations.filter(r => r.gid === target.gid && r.room === target.room);
+    const msg = related.length > 1 ? "연결된 모든 예약을 일괄 취소하시겠습니까?" : "해당 예약을 취소하시겠습니까?";
+    
+    if (!confirm(msg)) return;
+
+    for (let item of related) {
+        await db.ref('reservations/' + item.key).remove();
     }
+    alert("삭제되었습니다.");
 }
 
-function prevWeek() { currentWeekStart.setDate(currentWeekStart.getDate() - 7); renderAll(); }
-function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); renderAll(); }
-
-function renderWeekTable() {
-    if (!el.freshTable || !el.innovationTable) return;
+function renderWeekTable(roomName) {
     const weekDays = ['일','월','화','수','목','금','토'];
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -295,49 +261,29 @@ function renderWeekTable() {
         days.push(d);
     }
     el.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
-    const selectedDateStr = el.date.value;
+    
+    let html = `<thead><tr><th style="width:60px;">시간</th>`;
+    days.forEach(d => {
+        const isSel = getLocalDateString(d) === el.date.value;
+        html += `<th class="${isSel ? 'highlight-col' : ''}">${d.getDate()}(${weekDays[d.getDay()]})</th>`;
+    });
+    html += `</tr></thead><tbody>`;
 
-    const build = (target, type) => {
-        let html = `<thead><tr><th style="width:50px;">시간</th>`;
+    TIME_SLOTS.slice(0, -1).forEach(t => {
+        html += `<tr><td style="background:#f8f9fa; font-weight:bold;">${t}</td>`;
         days.forEach(d => {
             const dateStr = getLocalDateString(d);
-            const isSelected = (dateStr === selectedDateStr);
-            html += `<th class="${isSelected ? 'highlight-col' : ''}">${d.getDate()}(${weekDays[d.getDay()]})</th>`;
+            const isSel = dateStr === el.date.value;
+            const found = reservations.find(r => r.date === dateStr && r.time === t && r.room === roomName);
+            html += `<td class="${found ? 'reserved' : ''} ${isSel ? 'highlight-col' : ''}" onclick="${found ? `handleDelete('${found.key}')` : ''}">${found ? found.name : ''}</td>`;
         });
-        html += `</tr></thead><tbody>`;
-
-        TIME_SLOTS.slice(0, -1).forEach(t => {
-            html += `<tr><td style="background:#f8f9fa; font-weight:bold;">${t}</td>`;
-            days.forEach(d => {
-                const dateStr = getLocalDateString(d);
-                const isSelected = (dateStr === selectedDateStr);
-                const found = reservations.find(r => r.date === dateStr && r.time === t);
-                const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
-                html += `<td class="${name ? 'reserved' : ''} ${isSelected ? 'highlight-col' : ''}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
-            });
-            html += `</tr>`;
-        });
-        target.innerHTML = html + `</tbody>`;
-    };
-    build(el.freshTable, 'fresh');
-    build(el.innovationTable, 'innovation');
+        html += `</tr>`;
+    });
+    el.weekTable.innerHTML = html + `</tbody>`;
 }
 
-function clickCell(date, time, type) {
-    const existing = reservations.find(r => r.date === date && r.time === time);
-    const currentName = existing ? (type === 'fresh' ? existing.fresh : existing.innovation) : '';
-    if (currentName) return deleteBatch(existing.key, type);
-
-    const newName = prompt(`[${date} ${time}] 예약자명`, "");
-    if (!newName) return;
-
-    let updateData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
-    if (type === 'fresh') updateData.fresh = newName.trim();
-    else updateData.innovation = newName.trim();
-    if (existing) db.ref('reservations/' + existing.key).remove();
-    delete updateData.key;
-    db.ref('reservations').push(updateData);
-}
+function prevWeek() { currentWeekStart.setDate(currentWeekStart.getDate() - 7); renderAll(); }
+function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); renderAll(); }
 </script>
 </body>
 </html>
