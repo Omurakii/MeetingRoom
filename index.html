@@ -9,18 +9,50 @@
 body { font-family: Arial; padding:20px; display:flex; gap:20px; }
 .left { flex:2; }
 .right { flex:1; }
+
 table { border-collapse: collapse; width:100%; margin-top:20px; }
 th, td { border:1px solid #ccc; padding:8px; text-align:center; }
 
-/* ✅ Fresh / Innovation 너비 동일 */
+/* 동일 너비 */
 th:nth-child(2), th:nth-child(3),
 td:nth-child(2), td:nth-child(3) {
   width:160px;
 }
 
 th { background:#f0f0f0; }
+
 input, select, button { padding:6px; margin:4px; }
-.reserved { background:#ffe58a; }
+
+/* 예약 표시 */
+.reserved {
+  background:#ffe58a;
+  font-weight:bold;
+}
+
+/* 클릭 가능 */
+td { cursor:pointer; }
+
+/* 툴팁 */
+.tooltip { position:relative; }
+
+.tooltip:hover::after {
+  content: attr(data-tooltip);
+  position:absolute;
+  bottom:100%;
+  left:50%;
+  transform:translateX(-50%);
+  background:#333;
+  color:#fff;
+  padding:6px 10px;
+  border-radius:6px;
+  white-space:nowrap;
+  font-size:12px;
+  z-index:10;
+}
+
+.right table td { height:40px; }
+.right table th { background:#fafafa; }
+
 </style>
 </head>
 
@@ -54,13 +86,17 @@ input, select, button { padding:6px; margin:4px; }
 </div>
 
 <div class="right">
-<h3>📊 이번 주 예약</h3>
-<table id="weekTable">
-<thead>
-<tr><th>날짜</th><th>시간</th><th>Fresh</th><th>Innovation</th></tr>
-</thead>
-<tbody></tbody>
-</table>
+<h3>
+<button onclick="prevWeek()">◀</button>
+<span id="weekLabel"></span>
+<button onclick="nextWeek()">▶</button>
+</h3>
+
+<h4>Fresh</h4>
+<table id="freshWeekTable"></table>
+
+<h4>Innovation</h4>
+<table id="innovationWeekTable"></table>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -82,13 +118,13 @@ const db = firebase.database();
 
 let reservations = [];
 
-// 오늘 날짜 기본 세팅
+// 오늘 날짜
 window.onload = () => {
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('date').value = today;
 };
 
-// ✅ 안정적인 예약 추가 (DB 기준 중복 체크)
+// 예약 추가 (중복 방지)
 function addReservation() {
   const date = document.getElementById('date').value;
   const time = document.getElementById('time').value;
@@ -116,15 +152,14 @@ function addReservation() {
     });
 }
 
-// ✅ 삭제 (문제 안 생기게 안전하게)
+// 삭제
 function deleteReservation(key) {
   const ok = confirm("해당 시간에 예약한 분이 맞으신가요?\n\n확인 = 삭제 / 취소 = 유지");
   if (!ok) return;
-
   db.ref('reservations/' + key).remove();
 }
 
-// ✅ Firebase 실시간 (null 안전 처리)
+// Firebase
 db.ref('reservations').on('value', snapshot => {
   const data = snapshot.val();
 
@@ -138,13 +173,13 @@ db.ref('reservations').on('value', snapshot => {
   }
 
   renderSelectedDate();
-  renderWeek();
+  renderWeekTable();
 });
 
-// 날짜 변경 시
+// 날짜 변경
 document.getElementById('date').addEventListener('change', renderSelectedDate);
 
-// 선택 날짜 렌더
+// 선택 날짜 테이블
 function renderSelectedDate() {
   const selectedDate = document.getElementById('date').value;
   const tbody = document.querySelector('#todayTable tbody');
@@ -153,9 +188,9 @@ function renderSelectedDate() {
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
 
   times.forEach(t => {
-    const row = document.createElement('tr');
     const found = reservations.find(r => r.date === selectedDate && r.time === t);
 
+    const row = document.createElement('tr');
     if(found) row.classList.add('reserved');
 
     row.innerHTML = `
@@ -169,33 +204,123 @@ function renderSelectedDate() {
   });
 }
 
-// 주간 렌더
-function renderWeek() {
-  const tbody = document.querySelector('#weekTable tbody');
-  tbody.innerHTML = '';
+// ===== 주간 기능 =====
 
-  const today = new Date();
-  const weekDates = [];
+let currentWeekStart = getStartOfWeek(new Date());
 
+function getStartOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+}
+
+function prevWeek() {
+  currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+  renderWeekTable();
+}
+
+function nextWeek() {
+  currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+  renderWeekTable();
+}
+
+function renderWeekTable() {
+  const freshTable = document.getElementById('freshWeekTable');
+  const innovationTable = document.getElementById('innovationWeekTable');
+
+  const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
+
+  const days = [];
   for(let i=0;i<7;i++){
-    const d = new Date();
-    d.setDate(today.getDate() + i);
-    weekDates.push(d.toISOString().slice(0,10));
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() + i);
+    days.push(d);
   }
 
-  reservations
-    .filter(r => weekDates.includes(r.date))
-    .sort((a,b)=> a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
-    .forEach(r => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${r.date}</td>
-        <td>${r.time}</td>
-        <td>${r.fresh}</td>
-        <td>${r.innovation}</td>
-      `;
-      tbody.appendChild(row);
+  const month = days[0].getMonth() + 1;
+  const weekNum = Math.ceil(days[0].getDate() / 7);
+  document.getElementById('weekLabel').innerText = `${month}월 ${weekNum}주`;
+
+  function createTable(table, type) {
+    let html = '<tr><th>시간</th>';
+
+    days.forEach(d => {
+      html += `<th>${d.getDate()}일</th>`;
     });
+
+    html += '</tr>';
+
+    times.forEach(t => {
+      html += `<tr><td>${t}</td>`;
+
+      days.forEach(d => {
+        const dateStr = d.toISOString().slice(0,10);
+        const found = reservations.find(r => r.date === dateStr && r.time === t);
+
+        let value = '';
+        let className = '';
+        let tooltip = '';
+
+        if(found) {
+          value = type === 'fresh' ? found.fresh : found.innovation;
+          if(value) className = 'reserved';
+
+          tooltip = `날짜:${dateStr} | 시간:${t} | Fresh:${found.fresh || '-'} | Innovation:${found.innovation || '-'}`;
+        }
+
+        html += `
+        <td class="${className} tooltip"
+            data-tooltip="${tooltip}"
+            onclick="openReservationModal('${dateStr}','${t}')">
+            ${value || ''}
+        </td>`;
+      });
+
+      html += '</tr>';
+    });
+
+    table.innerHTML = html;
+  }
+
+  createTable(freshTable, 'fresh');
+  createTable(innovationTable, 'innovation');
+}
+
+// 클릭 → 예약/수정/삭제
+function openReservationModal(date, time) {
+  const existing = reservations.find(r => r.date === date && r.time === time);
+
+  let fresh = existing?.fresh || '';
+  let innovation = existing?.innovation || '';
+
+  const action = prompt(
+`[${date} ${time}]
+1 → 예약/수정
+2 → 삭제`
+  );
+
+  if (!action) return;
+
+  if (action === '2') {
+    if (!existing) return alert('삭제할 예약 없음');
+    if (!confirm('삭제하시겠습니까?')) return;
+
+    db.ref('reservations/' + existing.key).remove();
+    return;
+  }
+
+  fresh = prompt('Fresh', fresh);
+  if (fresh === null) return;
+
+  innovation = prompt('Innovation', innovation);
+  if (innovation === null) return;
+
+  if (existing) {
+    db.ref('reservations/' + existing.key).remove();
+  }
+
+  db.ref('reservations').push({ date, time, fresh, innovation });
 }
 </script>
 
