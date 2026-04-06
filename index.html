@@ -5,8 +5,8 @@
 <title>회의실 예약 시스템</title>
 <style>
     body { font-family: 'Malgun Gothic', sans-serif; padding:20px; display:flex; gap:20px; background-color: #f4f7f9; color: #333; }
-    .left { flex:1.2; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); height: fit-content; }
-    .right { flex:2.8; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+    .left { flex:1.4; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); height: fit-content; }
+    .right { flex:2.6; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
     
     h2, h3 { margin-top: 0; color: #1a1a1a; }
     h4 { margin: 25px 0 10px 0; padding-left: 10px; border-left: 5px solid #007bff; font-size: 16px; }
@@ -15,7 +15,6 @@
     th, td { border: 1px solid #e0e4e8; text-align: center; height: 40px; font-size: 13px; transition: 0.2s; }
     th { background: #f8f9fa; font-weight: 600; color: #555; }
     
-    /* 예약된 칸의 색상 - 개별 적용을 위해 클래스 유지 */
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; }
     td:hover { background-color: #f1f3f5; cursor: pointer; }
 
@@ -24,11 +23,12 @@
 
     button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 6px; padding: 10px 18px; font-weight: bold; transition: 0.3s; }
     button:hover { background-color: #0056b3; }
-    .btn-delete { background: #ff4d4f; padding: 4px 8px; font-size: 11px; border-radius: 4px; }
+    
+    /* 개별 삭제 버튼 스타일 */
+    .btn-delete { background: #ff4d4f; padding: 4px 6px; font-size: 11px; border-radius: 4px; font-weight: normal; }
     .btn-delete:hover { background: #d32f2f; }
 
     input, select { padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 14px; margin-right: 5px; }
-    input:focus { border-color: #007bff; outline: none; box-shadow: 0 0 0 2px rgba(0,123,255,0.25); }
     hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
 </style>
 </head>
@@ -56,7 +56,13 @@
   <h3>선택 날짜 현황 (<span id="selectedDateDisplay"></span>)</h3>
   <table id="todayTable">
     <thead>
-      <tr><th style="width:70px;">시간</th><th>Fresh</th><th>Innovation</th><th style="width:60px;">관리</th></tr>
+      <tr>
+        <th style="width:60px;">시간</th>
+        <th>Fresh</th>
+        <th style="width:50px;">관리</th>
+        <th>Innovation</th>
+        <th style="width:50px;">관리</th>
+      </tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -80,7 +86,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// 1. Firebase 설정 적용
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
@@ -92,7 +97,6 @@ const firebaseConfig = {
   measurementId: "G-XRQPQCVZQ1"
 };
 
-// 2. 초기화
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -111,7 +115,6 @@ const el = {
     dateDisplay: document.getElementById('selectedDateDisplay')
 };
 
-// 시작 시점 로직
 document.addEventListener("DOMContentLoaded", () => {
     const todayStr = getLocalDateString(new Date());
     el.date.value = todayStr;
@@ -122,7 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderAll();
     };
 
-    // 실시간 데이터 감시
     db.ref('reservations').on('value', snapshot => {
         const data = snapshot.val();
         reservations = data ? Object.entries(data).map(([k, v]) => ({ key: k, ...v })) : [];
@@ -147,7 +149,7 @@ function renderAll() {
     renderWeekTable();
 }
 
-// 좌측 목록 출력
+// 좌측 목록: 회의실별 삭제 버튼 분리
 function renderSelectedDate() {
     if (!el.todayTbody) return;
     el.todayTbody.innerHTML = '';
@@ -156,19 +158,22 @@ function renderSelectedDate() {
     times.forEach(t => {
         const found = reservations.find(r => r.date === el.date.value && r.time === t);
         const tr = document.createElement('tr');
-        if (found) tr.className = (found.fresh || found.innovation) ? 'reserved' : '';
         
+        const freshName = found?.fresh || '';
+        const innovName = found?.innovation || '';
+
         tr.innerHTML = `
             <td style="background:#f9f9f9; font-weight:bold;">${t}</td>
-            <td>${found?.fresh || ''}</td>
-            <td>${found?.innovation || ''}</td>
-            <td>${found ? `<button class="btn-delete" onclick="deleteRes('${found.key}')">삭제</button>` : ''}</td>
+            <td class="${freshName ? 'reserved' : ''}">${freshName}</td>
+            <td>${freshName ? `<button class="btn-delete" onclick="deleteRoomRes('${found.key}', 'fresh')">삭제</button>` : ''}</td>
+            <td class="${innovName ? 'reserved' : ''}">${innovName}</td>
+            <td>${innovName ? `<button class="btn-delete" onclick="deleteRoomRes('${found.key}', 'innovation')">삭제</button>` : ''}</td>
         `;
         el.todayTbody.appendChild(tr);
     });
 }
 
-// 상단 예약 버튼 클릭
+// 예약 추가 로직
 function addReservation() {
     const date = el.date.value;
     const time = el.time.value;
@@ -179,35 +184,49 @@ function addReservation() {
 
     const existing = reservations.find(r => r.date === date && r.time === time);
     
-    // 기존 데이터가 있으면 합침 (한쪽만 예약했을 때 다른 쪽 유지)
-    let newData = { date, time, fresh, innovation };
-    if (existing) {
-        newData.fresh = fresh || existing.fresh;
-        newData.innovation = innovation || existing.innovation;
-        db.ref('reservations/' + existing.key).remove();
-    }
+    let newData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
+    
+    // 입력된 값이 있는 경우에만 덮어쓰고, 없으면 기존 값 유지
+    if (fresh) newData.fresh = fresh;
+    if (innovation) newData.innovation = innovation;
 
+    if (existing) db.ref('reservations/' + existing.key).remove();
+    
+    delete newData.key;
     db.ref('reservations').push(newData).then(() => {
         el.fresh.value = '';
         el.innovation.value = '';
     });
 }
 
-function deleteRes(key) {
-    if (confirm("정말 삭제하시겠습니까?")) db.ref('reservations/' + key).remove();
+// 특정 회의실만 삭제하는 함수
+function deleteRoomRes(key, type) {
+    if (!confirm("해당 회의실 예약을 삭제하시겠습니까?")) return;
+    
+    const target = reservations.find(r => r.key === key);
+    if (!target) return;
+
+    let updateData = { ...target };
+    if (type === 'fresh') updateData.fresh = '';
+    else updateData.innovation = '';
+
+    db.ref('reservations/' + key).remove();
+
+    // 만약 양쪽 다 비게 되면 아예 삭제, 한쪽이라도 남으면 업데이트
+    if (updateData.fresh || updateData.innovation) {
+        delete updateData.key;
+        db.ref('reservations').push(updateData);
+    }
 }
 
-// 주간 이동
 function prevWeek() { currentWeekStart.setDate(currentWeekStart.getDate() - 7); renderAll(); }
 function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); renderAll(); }
 
-// 우측 주간 표 렌더링 (회의실 별로 색상/내용 분리)
 function renderWeekTable() {
     if (!el.freshTable || !el.innovationTable) return;
     const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
     const weekDays = ['일','월','화','수','목','금','토'];
     const days = [];
-    
     for (let i = 0; i < 7; i++) {
         const d = new Date(currentWeekStart);
         d.setDate(d.getDate() + i);
@@ -223,43 +242,31 @@ function renderWeekTable() {
             days.forEach(d => {
                 const dateStr = getLocalDateString(d);
                 const found = reservations.find(r => r.date === dateStr && r.time === t);
-                
-                // 해당 회의실 타입에 맞는 이름만 가져옴
                 const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
-                // 이름이 있을 때만 노란색(reserved) 클래스 부여
                 const isReserved = name ? 'reserved' : '';
-                
                 html += `<td class="${isReserved}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
             });
             html += `</tr>`;
         });
         target.innerHTML = html + `</tbody>`;
     };
-
     build(el.freshTable, 'fresh');
     build(el.innovationTable, 'innovation');
 }
 
-// 주간 셀 클릭 (타입에 따라 다른 팝업)
 function clickCell(date, time, type) {
     const existing = reservations.find(r => r.date === date && r.time === time);
     const typeLabel = (type === 'fresh') ? 'Fresh' : 'Innovation';
     const currentName = existing ? (type === 'fresh' ? existing.fresh : existing.innovation) : '';
     
-    // 클릭한 회의실에 맞는 팝업창 제목 표시
-    const newName = prompt(`[${date} ${time}] ${typeLabel} 회의실 예약자명을 입력하세요.`, currentName || '');
-    
+    const newName = prompt(`[${date} ${time}] ${typeLabel} 예약자명`, currentName || '');
     if (newName === null) return;
 
     let updateData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
-    
-    // 해당되는 회의실 데이터만 갱신
     if (type === 'fresh') updateData.fresh = newName.trim();
     else updateData.innovation = newName.trim();
 
     if (existing) db.ref('reservations/' + existing.key).remove();
-    
-    // 둘 다 비어있는 게 아니라면 저장
     if (updateData.fresh || updateData.innovation) {
         delete updateData.key;
         db.ref('reservations').push(updateData);
