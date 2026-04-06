@@ -28,22 +28,28 @@
     /* 테이블 공통 */
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
-    th { background: #f8f9fa; padding: 8px 0; }
+    th { background: #f8f9fa; padding: 10px 0; }
+    
+    /* 💡 주간 캘린더 행 높이 복구 */
+    #weekTable td { height: 40px; } 
+    
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     .highlight-col { background-color: #fffaf0; border-left: 2px dashed var(--primary); border-right: 2px dashed var(--primary); }
+    .today-marker { color: var(--primary); font-weight: bold; }
 
     /* 월간 캘린더 전용 */
     .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border); border-left: 1px solid var(--border); flex: 1; overflow-y: auto; }
-    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 100px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; }
+    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; }
     .month-day:hover { background: #f9f9f9; }
     .month-day.other-month { background: #fcfcfc; color: #ccc; }
     .month-day.is-today { background: #fff0e6; }
     .day-num { font-weight: bold; margin-bottom: 5px; display: block; }
     .month-res-list { flex: 1; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 2px; }
-    .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); }
+    .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); margin-bottom: 1px; }
 
-    /* 주간/오늘현황 스크롤 */
-    .scroll-area { flex: 1; overflow-y: auto; }
+    /* 스크롤 영역 */
+    .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
+    .btn-today { background-color: #555 !important; }
 </style>
 </head>
 <body>
@@ -55,7 +61,7 @@
     <button onclick="changeRoom(1)">▶</button>
   </div>
   
-  <h2 style="font-size: 18px; margin: 0 0 10px; text-align:center;">📅 회의실 예약</h2>
+  <h2 style="font-size: 18px; margin: 0 0 10px; text-align:center;">🏢 회의실 예약</h2>
   <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
     <input type="date" id="resDate">
     <div style="display:flex; gap:4px;">
@@ -85,11 +91,11 @@
     <button id="btnMonth" onclick="setView('month')">월간</button>
   </div>
 
-  <div class="week-nav" style="display:flex; justify-content:center; align-items:center; gap:15px; margin-bottom:10px;">
-    <button onclick="changeDate(-7)">◀ 이전</button>
-    <button onclick="goToday()" style="background:#555;">오늘</button>
-    <h3 id="currentViewRange" style="margin:0; font-size:16px; min-width:160px; text-align:center;"></h3>
-    <button onclick="changeDate(7)">다음 ▶</button>
+  <div class="week-nav" style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:10px;">
+    <button class="btn-today" onclick="goToday()">오늘</button>
+    <button onclick="changeDate(-1)">◀ 이전</button>
+    <h3 id="currentViewRange" style="margin:0; font-size:16px; min-width:180px; text-align:center;"></h3>
+    <button onclick="changeDate(1)">다음 ▶</button>
   </div>
 
   <div id="weekView" class="scroll-area">
@@ -107,8 +113,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
   databaseURL: "https://meeting-room-9382e-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "meeting-room-9382e",
-  databaseURL: "https://meeting-room-9382e-default-rtdb.asia-southeast1.firebasedatabase.app"
+  projectId: "meeting-room-9382e"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -116,7 +121,7 @@ const db = firebase.database();
 const ROOMS = ["Fresh", "Innovation", "Healthy"];
 let roomIdx = 0;
 let viewMode = 'week'; 
-let currentBaseDate = new Date(); // 기준 날짜
+let currentBaseDate = new Date(); 
 
 const SLOTS = [];
 for(let h=8; h<=17; h++) {
@@ -161,13 +166,11 @@ function render() {
     const rName = ROOMS[roomIdx];
     document.getElementById('roomName').innerText = rName;
     document.getElementById('subRoom').innerText = rName;
-    
     renderToday(rName);
     if(viewMode === 'week') renderWeek(rName);
     else renderMonth(rName);
 }
 
-// 오늘 현황 (왼쪽)
 function renderToday(room) {
     const selDate = document.getElementById('resDate').value;
     const tbody = document.querySelector('#todayTable tbody');
@@ -176,12 +179,11 @@ function renderToday(room) {
         const found = reservations.find(r => r.date === selDate && r.time === t && r.room === room);
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${t}</td><td class="${found?'reserved':''}">${found?found.name:''}</td>
-                        <td>${found?`<button class="btn-delete" style="padding:2px 5px; font-size:10px; background:#ff4d4f;" onclick="delRes('${found.key}')">X</button>`:''}</td>`;
+                        <td>${found?`<button style="padding:2px 5px; font-size:10px; background:#ff4d4f; border:none; color:white; border-radius:3px; cursor:pointer;" onclick="delRes('${found.key}')">X</button>`:''}</td>`;
         tbody.appendChild(tr);
     });
 }
 
-// 주간 캘린더
 function renderWeek(room) {
     const start = getStartOfWeek(currentBaseDate);
     const days = [];
@@ -189,10 +191,14 @@ function renderWeek(room) {
     
     document.getElementById('currentViewRange').innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
     
-    let html = `<thead><tr><th style="width:50px;">시간</th>`;
+    let html = `<thead><tr><th style="width:60px;">시간</th>`;
     days.forEach(d => {
-        const isToday = getDS(d) === getDS(new Date());
-        html += `<th class="${isToday?'highlight-col':''}">${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday?'<br>(오늘)':''}</th>`;
+        const dStr = getDS(d);
+        const isToday = dStr === getDS(new Date());
+        const isSelected = dStr === document.getElementById('resDate').value;
+        html += `<th class="${isSelected?'highlight-col':''} ${isToday?'today-marker':''}">
+                    ${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday?'<br>(오늘)':''}
+                 </th>`;
     });
     html += `</tr></thead><tbody>`;
 
@@ -200,15 +206,18 @@ function renderWeek(room) {
         html += `<tr><td style="background:#f8f9fa; font-weight:bold;">${t}</td>`;
         days.forEach(d => {
             const dStr = getDS(d);
+            const isSelected = dStr === document.getElementById('resDate').value;
             const found = reservations.find(r => r.date === dStr && r.time === t && r.room === room);
-            html += `<td class="${found?'reserved':''}" onclick="${found?`delRes('${found.key}')`:`quickRes('${dStr}','${t}')`}">${found?found.name:''}</td>`;
+            html += `<td class="${found?'reserved':''} ${isSelected?'highlight-col':''}" 
+                         onclick="${found?`delRes('${found.key}')`:`quickRes('${dStr}','${t}')`}">
+                         ${found?found.name:''}
+                     </td>`;
         });
         html += `</tr>`;
     });
     document.getElementById('weekTable').innerHTML = html + `</tbody>`;
 }
 
-// 월간 캘린더
 function renderMonth(room) {
     const container = document.getElementById('monthView');
     container.innerHTML = '';
@@ -218,7 +227,7 @@ function renderMonth(room) {
 
     const firstDay = new Date(y, m, 1);
     const startDay = new Date(firstDay);
-    startDay.setDate(firstDay.getDate() - firstDay.getDay()); // 달력 시작일 (일요일)
+    startDay.setDate(firstDay.getDate() - firstDay.getDay()); 
 
     for(let i=0; i<42; i++) {
         const d = new Date(startDay); d.setDate(startDay.getDate() + i);
@@ -228,10 +237,13 @@ function renderMonth(room) {
 
         const dayDiv = document.createElement('div');
         dayDiv.className = `month-day ${isOtherMonth?'other-month':''} ${isToday?'is-today':''}`;
-        dayDiv.onclick = () => { document.getElementById('resDate').value = dStr; render(); };
+        dayDiv.onclick = () => { 
+            document.getElementById('resDate').value = dStr; 
+            currentBaseDate = new Date(dStr);
+            render(); 
+        };
 
         const dayRes = reservations.filter(r => r.date === dStr && r.room === room).sort((a,b)=>a.time.localeCompare(b.time));
-        
         let resHtml = dayRes.map(r => `<div class="res-item" onclick="event.stopPropagation(); delRes('${r.key}')">${r.time} ${r.name}</div>`).join('');
         
         dayDiv.innerHTML = `<span class="day-num">${d.getDate()}</span><div class="month-res-list">${resHtml}</div>`;
@@ -239,10 +251,9 @@ function renderMonth(room) {
     }
 }
 
-// 공통 기능들
 async function addRes() {
     const date = document.getElementById('resDate').value;
-    if(date < getDS(new Date())) return alert("과거 날짜는 예약 불가합니다.");
+    if(date < getDS(new Date())) return alert("오늘보다 이전 날짜입니다.");
     const name = document.getElementById('resName').value.trim();
     const pw = document.getElementById('resPw').value.trim();
     if(!name || pw.length<4) return alert("성함과 비번 4자리를 입력하세요.");
@@ -259,36 +270,58 @@ async function addRes() {
     for(let t of targetSlots) {
         await db.ref('reservations').push({ room, date, time: t, name, pw, gid });
     }
-    document.getElementById('resName').value=''; document.getElementById('resPw').value='';
+    document.getElementById('resName').value=''; document.getElementById('resPw').value=''; alert("예약 완료");
 }
 
 async function delRes(key) {
     const target = reservations.find(r => r.key === key);
     if(!target) return;
     const pw = prompt("비밀번호 4자리를 입력하세요.");
-    if(pw !== target.pw) return alert("비밀번호 불일치");
+    if(pw !== target.pw) return alert("비밀번호가 일치하지 않습니다.");
 
     const related = reservations.filter(r => r.gid === target.gid && r.room === target.room);
     if(!confirm(related.length>1 ? "연결된 전체 예약을 삭제하시겠습니까?" : "삭제하시겠습니까?")) return;
 
     for(let item of related) await db.ref('reservations/' + item.key).remove();
+    alert("삭제되었습니다.");
 }
 
-function quickRes(d, t) { document.getElementById('resDate').value = d; document.getElementById('startT').value = t; syncEndTime(); renderToday(ROOMS[roomIdx]); }
+function quickRes(d, t) { 
+    document.getElementById('resDate').value = d; 
+    document.getElementById('startT').value = t; 
+    syncEndTime(); 
+    render(); 
+}
+
 function syncEndTime() {
     const sIdx = SLOTS.indexOf(document.getElementById('startT').value);
     const endSel = document.getElementById('endT');
     endSel.innerHTML = '';
     SLOTS.slice(sIdx+1).forEach(t => { let opt = document.createElement('option'); opt.value=t; opt.innerText=t; endSel.appendChild(opt); });
 }
+
 function changeRoom(n) { roomIdx = (roomIdx+n+ROOMS.length)%ROOMS.length; render(); }
-function changeDate(n) { currentBaseDate.setDate(currentBaseDate.getDate() + (viewMode==='month'? n*4 : n)); render(); }
-function goToday() { currentBaseDate = new Date(); document.getElementById('resDate').value = getDS(currentBaseDate); render(); }
+function changeDate(n) { 
+    if(viewMode === 'week') currentBaseDate.setDate(currentBaseDate.getDate() + (n * 7));
+    else currentBaseDate.setMonth(currentBaseDate.getMonth() + n);
+    render(); 
+}
+function goToday() { 
+    currentBaseDate = new Date(); 
+    document.getElementById('resDate').value = getDS(currentBaseDate); 
+    render(); 
+}
 function getDS(d) { return d.toISOString().split('T')[0]; }
-function getStartOfWeek(d) { const dd = new Date(d); const day = dd.getDay(); const diff = dd.getDate() - day + (day===0?-6:1); return new Date(dd.setDate(diff)); }
+function getStartOfWeek(d) { 
+    const dd = new Date(d); 
+    const day = dd.getDay(); 
+    const diff = dd.getDate() - day + (day===0?-6:1); 
+    return new Date(dd.setDate(diff)); 
+}
 async function autoCleanup() {
     const limit = getDS(new Date(Date.now() - 30*24*60*60*1000));
-    reservations.filter(r => r.date < limit).forEach(r => db.ref('reservations/'+r.key).remove());
+    const oldOnes = reservations.filter(r => r.date < limit);
+    for(let r of oldOnes) await db.ref('reservations/'+r.key).remove();
 }
 </script>
 </body>
