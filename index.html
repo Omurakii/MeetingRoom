@@ -2,13 +2,16 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>회의실 예약 시스템 (시간 연동형)</title>
+<title>회의실 예약 시스템 (중복 방지 강화)</title>
 <style>
     body { font-family: 'Malgun Gothic', sans-serif; padding:15px; display:flex; gap:15px; background-color: #f4f7f9; color: #333; margin: 0; }
     .left { flex:1.3; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); height: fit-content; }
     .right { flex:2.7; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
     
-    h2, h3 { margin-top: 0; color: #1a1a1a; font-size: 1.2rem; }
+    h2 { margin-top: 0; margin-bottom: 5px; color: #1a1a1a; font-size: 1.2rem; }
+    .notice { font-size: 11px; color: #666; margin-bottom: 15px; display: block; }
+    
+    h3 { margin-top: 0; color: #1a1a1a; font-size: 1.1rem; }
     h4 { margin: 15px 0 8px 0; padding-left: 10px; border-left: 5px solid #007bff; font-size: 14px; }
 
     table { border-collapse: collapse; width:100%; margin-top: 5px; table-layout: fixed; background: white; }
@@ -36,6 +39,8 @@
 
 <div class="left">
   <h2>📅 회의실 예약</h2>
+  <span class="notice">※ 업무명이 아닌 예약자 성함으로 예약 바랍니다.</span>
+  
   <div style="display: flex; flex-direction: column; gap: 8px;">
     <input type="date" id="date" style="width: 95%;">
     
@@ -89,7 +94,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// Firebase 설정
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
@@ -104,7 +108,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// 30분 단위 시간 슬롯
 const TIME_SLOTS = [];
 for (let h = 8; h <= 17; h++) {
     for (let m of ["00", "30"]) {
@@ -112,7 +115,7 @@ for (let h = 8; h <= 17; h++) {
         TIME_SLOTS.push(`${String(h).padStart(2, '0')}:${m}`);
     }
 }
-TIME_SLOTS.push("17:30"); // 종료용
+TIME_SLOTS.push("17:30");
 
 let reservations = [];
 let currentWeekStart = getStartOfWeek(new Date());
@@ -131,14 +134,11 @@ const el = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 시작 시간 옵션 생성
     TIME_SLOTS.slice(0, -1).forEach(t => {
         let opt = document.createElement('option');
         opt.value = t; opt.innerText = t;
         el.startTime.appendChild(opt);
     });
-
-    // 초기 종료 시간 세팅
     syncEndTime();
 
     const todayStr = getLocalDateString(new Date());
@@ -159,22 +159,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// 💡 핵심: 시작 시간을 선택하면 종료 시간 목록을 자동 필터링 및 30분 뒤로 설정
 function syncEndTime() {
     const startVal = el.startTime.value;
     const startIdx = TIME_SLOTS.indexOf(startVal);
-    
-    // 기존 종료 옵션 제거
     el.endTime.innerHTML = "";
-
-    // 시작 시간보다 뒤에 있는 시간들만 종료 옵션으로 추가
     TIME_SLOTS.slice(startIdx + 1).forEach(t => {
         let opt = document.createElement('option');
         opt.value = t; opt.innerText = t;
         el.endTime.appendChild(opt);
     });
-
-    // 기본적으로 시작 시간 바로 다음(30분 뒤)이 선택되도록 함
     el.endTime.selectedIndex = 0;
 }
 
@@ -201,13 +194,11 @@ function renderSelectedDate() {
     if (!el.todayTbody) return;
     el.todayTbody.innerHTML = '';
     const displaySlots = TIME_SLOTS.slice(0, -1);
-
     displaySlots.forEach(t => {
         const found = reservations.find(r => r.date === el.date.value && r.time === t);
         const tr = document.createElement('tr');
         const freshName = found?.fresh || '';
         const innovName = found?.innovation || '';
-
         tr.innerHTML = `
             <td style="background:#f9f9f9; font-weight:bold;">${t}</td>
             <td class="${freshName ? 'reserved' : ''}">${freshName}</td>
@@ -232,19 +223,31 @@ async function addReservation() {
     const endIdx = TIME_SLOTS.indexOf(endT);
     const targetSlots = TIME_SLOTS.slice(startIdx, endIdx);
 
-    // 연속 슬롯 예약 처리
+    // 💡 중복 체크 로직 강화
+    for (let t of targetSlots) {
+        const existing = reservations.find(r => r.date === date && r.time === t);
+        if (existing) {
+            if (fresh && existing.fresh) {
+                alert(`이미 예약된 시간대가 포함되어 있습니다. (Fresh: ${t})`);
+                return;
+            }
+            if (innovation && existing.innovation) {
+                alert(`이미 예약된 시간대가 포함되어 있습니다. (Innovation: ${t})`);
+                return;
+            }
+        }
+    }
+
+    // 중복이 없을 경우 예약 진행
     for (let t of targetSlots) {
         const existing = reservations.find(r => r.date === date && r.time === t);
         let newData = existing ? { ...existing } : { date, time: t, fresh: '', innovation: '' };
-        
         if (fresh) newData.fresh = fresh;
         if (innovation) newData.innovation = innovation;
-
         if (existing) await db.ref('reservations/' + existing.key).remove();
         delete newData.key;
         await db.ref('reservations').push(newData);
     }
-    
     el.fresh.value = '';
     el.innovation.value = '';
     alert("예약이 성공적으로 등록되었습니다.");
@@ -278,7 +281,6 @@ function renderWeekTable() {
     }
     el.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
     const displaySlots = TIME_SLOTS.slice(0, -1);
-
     const build = (target, type) => {
         let html = `<thead><tr><th style="width:50px;">시간</th>${days.map(d => `<th>${d.getDate()}(${weekDays[d.getDay()]})</th>`).join('')}</tr></thead><tbody>`;
         displaySlots.forEach(t => {
@@ -301,8 +303,19 @@ function clickCell(date, time, type) {
     const existing = reservations.find(r => r.date === date && r.time === time);
     const typeLabel = (type === 'fresh') ? 'Fresh' : 'Innovation';
     const currentName = existing ? (type === 'fresh' ? existing.fresh : existing.innovation) : '';
+    
     const newName = prompt(`[${date} ${time}] ${typeLabel} 예약자명`, currentName || '');
     if (newName === null) return;
+    
+    // 💡 셀 클릭 예약 시에도 중복 체크 (기존 이름이 없을 때만)
+    if (newName.trim() !== "" && currentName === "") {
+        const already = reservations.find(r => r.date === date && r.time === time);
+        if (already && (type === 'fresh' ? already.fresh : already.innovation)) {
+            alert("이미 예약된 시간대입니다.");
+            return;
+        }
+    }
+
     let updateData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
     if (type === 'fresh') updateData.fresh = newName.trim();
     else updateData.innovation = newName.trim();
