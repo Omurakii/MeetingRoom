@@ -16,10 +16,9 @@ th, td { border:1px solid #ccc; text-align:center; }
 th { background:#f0f0f0; }
 
 .reserved { background:#ffe58a; font-weight:bold; }
-
 td { cursor:pointer; }
 
-/* 오른쪽 테이블 */
+/* 🔥 우측 주간표 핵심 */
 .right table {
   table-layout: fixed;
   width:100%;
@@ -55,9 +54,9 @@ td { cursor:pointer; }
   transform:translateX(-50%);
   background:#333;
   color:#fff;
-  padding:5px 8px;
-  border-radius:5px;
-  font-size:11px;
+  padding:4px 6px;
+  font-size:10px;
+  border-radius:4px;
 }
 
 input, select, button { padding:6px; margin:4px; }
@@ -108,31 +107,52 @@ input, select, button { padding:6px; margin:4px; }
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
+/* 🔥 Firebase 설정 (여기 네 값 유지) */
 const firebaseConfig = {
   apiKey: "AIza...",
   authDomain: "...",
-  databaseURL: "..."
+  databaseURL: "https://xxx-default-rtdb.firebaseio.com/"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🔥 DOM 변수 반드시 선언 */
-const dateEl = document.getElementById('date');
-const timeEl = document.getElementById('time');
-const freshEl = document.getElementById('fresh');
-const innovationEl = document.getElementById('innovation');
-
-const freshWeekTable = document.getElementById('freshWeekTable');
-const innovationWeekTable = document.getElementById('innovationWeekTable');
+/* 🔥 DOM 안전 초기화 */
+let dateEl, timeEl, freshEl, innovationEl;
+let freshWeekTable, innovationWeekTable;
 
 let reservations = [];
+let currentWeekStart = getStartOfWeek(new Date());
 
-/* 오늘 날짜 세팅 */
-window.onload = () => {
+/* 🔥 DOM 로딩 이후 실행 (핵심) */
+document.addEventListener("DOMContentLoaded", () => {
+
+  dateEl = document.getElementById('date');
+  timeEl = document.getElementById('time');
+  freshEl = document.getElementById('fresh');
+  innovationEl = document.getElementById('innovation');
+
+  freshWeekTable = document.getElementById('freshWeekTable');
+  innovationWeekTable = document.getElementById('innovationWeekTable');
+
   dateEl.value = new Date().toISOString().slice(0,10);
-  renderWeekTable(); // 🔥 반드시 실행
-};
+
+  /* 🔥 Firebase 이후 렌더 (핵심) */
+  db.ref('reservations').on('value', snapshot => {
+
+    const data = snapshot.val();
+    reservations = data ? Object.entries(data).map(([k,v]) => ({key:k,...v})) : [];
+
+    renderAll();
+  });
+
+});
+
+/* 🔥 통합 렌더 */
+function renderAll(){
+  renderSelectedDate();
+  renderWeekTable();
+}
 
 /* 예약 */
 function addReservation() {
@@ -144,17 +164,9 @@ function addReservation() {
   });
 }
 
-/* Firebase */
-db.ref('reservations').on('value', snapshot => {
-  const data = snapshot.val();
-  reservations = data ? Object.entries(data).map(([k,v]) => ({key:k,...v})) : [];
-
-  renderSelectedDate();
-  renderWeekTable();
-});
-
 /* 좌측 */
 function renderSelectedDate() {
+
   const tbody = document.querySelector('#todayTable tbody');
   tbody.innerHTML = '';
 
@@ -173,14 +185,12 @@ function renderSelectedDate() {
   });
 }
 
+/* 삭제 */
 function deleteReservation(key){
   db.ref('reservations/'+key).remove();
 }
 
-/* ===== 주간 ===== */
-
-let currentWeekStart = getStartOfWeek(new Date());
-
+/* 주 시작 */
 function getStartOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
@@ -188,6 +198,7 @@ function getStartOfWeek(date) {
   return new Date(d.setDate(diff));
 }
 
+/* 주 이동 */
 function prevWeek(){
   currentWeekStart.setDate(currentWeekStart.getDate()-7);
   renderWeekTable();
@@ -198,7 +209,10 @@ function nextWeek(){
   renderWeekTable();
 }
 
+/* 🔥 주간 테이블 */
 function renderWeekTable() {
+
+  if (!freshWeekTable || !innovationWeekTable) return;
 
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
 
@@ -251,6 +265,7 @@ function renderWeekTable() {
 
 /* 클릭 */
 function openReservation(date,time){
+
   const existing = reservations.find(r=>r.date===date && r.time===time);
 
   const fresh = prompt("Fresh", existing?.fresh||'');
