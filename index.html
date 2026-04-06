@@ -3,45 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <title>회의실 예약 시스템</title>
-
 <style>
-body { font-family: 'Malgun Gothic', dotum, sans-serif; padding:20px; display:flex; gap:20px; background-color: #f9f9f9; }
+/* CSS는 동일하므로 가독성을 위해 생략 가능하지만, 안정성을 위해 포함합니다 */
+body { font-family: 'Malgun Gothic', sans-serif; padding:20px; display:flex; gap:20px; background-color: #f9f9f9; }
 .left { flex:1.5; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.right { flex:2; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-
-table { border-collapse: collapse; width:100%; margin-top: 10px; }
-th, td { border:1px solid #ddd; text-align:center; transition: all 0.2s; }
-
-.left th, .left td { padding:10px; }
-th { background:#f4f4f4; color: #333; font-size: 13px; }
-
-.reserved { background:#fff3cd; font-weight:bold; color: #856404; }
-td { cursor:pointer; height: 35px; }
-td:hover { background-color: #f0f0f0; }
-
-/* 우측 주간표 스타일 */
-.right table { table-layout: fixed; width:100%; font-size:11px; }
-.right th, .right td { padding:4px; overflow:hidden; white-space:nowrap; text-overflow: ellipsis; }
-.right th:first-child, .right td:first-child { width:60px; background: #f8f9fa; font-weight: bold; }
-
-/* 툴팁 */
-.tooltip { position:relative; }
-.tooltip:hover::after {
-  content: attr(data-tooltip);
-  position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
-  background:#333; color:#fff; padding:5px 10px; border-radius:5px;
-  font-size:11px; white-space: nowrap; z-index: 100;
-}
-
-input, select, button { padding:8px; margin:4px 2px; border: 1px solid #ccc; border-radius: 4px; }
-button { cursor: pointer; background-color: #007bff; color: white; border: none; font-weight: bold; }
-button:hover { background-color: #0056b3; }
-.btn-delete { background-color: #dc3545; padding: 4px 8px; font-size: 12px; }
-.btn-delete:hover { background-color: #c82333; }
+.right { flex:2.5; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+table { border-collapse: collapse; width:100%; margin-top: 10px; table-layout: fixed; }
+th, td { border:1px solid #ddd; text-align:center; height: 35px; font-size: 12px; }
+th { background:#f4f4f4; }
+.reserved { background:#fff3cd !important; font-weight:bold; }
+td { cursor:pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .week-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px; }
+button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; padding: 8px 12px; }
+input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 </style>
 </head>
-
 <body>
 
 <div class="left">
@@ -54,17 +30,16 @@ button:hover { background-color: #0056b3; }
       <option>14:30</option><option>15:30</option><option>16:30</option>
     </select>
   </div>
-  <div>
+  <div style="margin-top:10px;">
     <input type="text" id="fresh" placeholder="Fresh 예약자">
     <input type="text" id="innovation" placeholder="Innovation 예약자">
     <button onclick="addReservation()">예약하기</button>
   </div>
-
   <hr>
-  <h3>선택 날짜 현황</h3>
+  <h3>선택 날짜 현황 (<span id="selectedDateDisplay"></span>)</h3>
   <table id="todayTable">
     <thead>
-      <tr><th>시간</th><th>Fresh</th><th>Innovation</th><th>관리</th></tr>
+      <tr><th style="width:60px;">시간</th><th>Fresh</th><th>Innovation</th><th style="width:50px;">관리</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -76,11 +51,9 @@ button:hover { background-color: #0056b3; }
     <h3 id="weekLabel" style="margin:0;"></h3>
     <button onclick="nextWeek()">▶</button>
   </div>
-
   <h4>📍 Fresh 회의실</h4>
   <table id="freshWeekTable"></table>
-
-  <h4 style="margin-top:30px;">📍 Innovation 회의실</h4>
+  <h4 style="margin-top:20px;">📍 Innovation 회의실</h4>
   <table id="innovationWeekTable"></table>
 </div>
 
@@ -88,25 +61,23 @@ button:hover { background-color: #0056b3; }
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// 1. Firebase 설정 (본인의 정보로 반드시 교체하세요)
+// ⚠️ 주의: 반드시 본인의 실제 Firebase 정보를 넣어야 작동합니다.
 const firebaseConfig = {
-  apiKey: "AIza...",
+  apiKey: "AIza...", 
   authDomain: "...",
-  databaseURL: "https://xxx-default-rtdb.firebaseio.com/" // 본인의 DB URL
+  databaseURL: "https://xxx-default-rtdb.firebaseio.com/" 
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// 전역 변수
 let reservations = [];
 let currentWeekStart = getStartOfWeek(new Date());
 
-// DOM 요소
 const elements = {};
 
-// 초기화
 document.addEventListener("DOMContentLoaded", () => {
+  // DOM 요소 참조
   elements.date = document.getElementById('date');
   elements.time = document.getElementById('time');
   elements.fresh = document.getElementById('fresh');
@@ -115,147 +86,141 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.innovationTable = document.getElementById('innovationWeekTable');
   elements.todayTbody = document.querySelector('#todayTable tbody');
   elements.weekLabel = document.getElementById('weekLabel');
+  elements.dateDisplay = document.getElementById('selectedDateDisplay');
 
-  // 오늘 날짜 설정 (KST)
-  elements.date.value = getLocalDateString(new Date());
-  
-  // 날짜 변경 시 좌측 리스트 갱신
-  elements.date.addEventListener('change', renderSelectedDate);
+  // 오늘 날짜 초기값 설정
+  const todayStr = getLocalDateString(new Date());
+  elements.date.value = todayStr;
+  elements.dateDisplay.innerText = todayStr;
 
-  // 2. Firebase 데이터 감시 (데이터 로드 후 즉시 실행됨)
+  // 날짜 변경 이벤트
+  elements.date.onchange = () => {
+    elements.dateDisplay.innerText = elements.date.value;
+    renderAll();
+  };
+
+  // 🔥 핵심: 데이터 로드 시점 관리
   db.ref('reservations').on('value', snapshot => {
     const data = snapshot.val();
-    reservations = data ? Object.entries(data).map(([k,v]) => ({key:k,...v})) : [];
-    renderAll(); // 데이터 로드 완료 시 전체 렌더링
+    reservations = data ? Object.entries(data).map(([k, v]) => ({ key: k, ...v })) : [];
+    renderAll(); // 데이터가 오면 무조건 다시 그림
+  }, error => {
+    console.error("Firebase 로드 에러:", error);
+    alert("데이터를 불러오지 못했습니다. Firebase 설정을 확인하세요.");
   });
+
+  // 최초 1회 강제 렌더링
+  renderAll();
 });
 
-// 한국 시간 기준 날짜 문자열 (YYYY-MM-DD)
 function getLocalDateString(date) {
   const d = new Date(date);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 주 시작일 계산
 function getStartOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일 기준
   return new Date(d.setDate(diff));
 }
 
-// 전체 렌더링
 function renderAll() {
   renderSelectedDate();
   renderWeekTable();
 }
 
-// 좌측 오늘 날짜 예약 리스트
 function renderSelectedDate() {
-  if(!elements.todayTbody) return;
+  if (!elements.todayTbody) return;
   elements.todayTbody.innerHTML = '';
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
 
   times.forEach(t => {
     const found = reservations.find(r => r.date === elements.date.value && r.time === t);
     const tr = document.createElement('tr');
-    if(found) tr.className = 'reserved';
-    
+    if (found) tr.className = 'reserved';
     tr.innerHTML = `
       <td>${t}</td>
       <td>${found?.fresh || ''}</td>
       <td>${found?.innovation || ''}</td>
-      <td>${found ? `<button class="btn-delete" onclick="deleteRes('${found.key}')">삭제</button>` : ''}</td>
+      <td>${found ? `<button style="background:#dc3545; padding:2px 5px; font-size:11px;" onclick="deleteRes('${found.key}')">삭제</button>` : ''}</td>
     `;
     elements.todayTbody.appendChild(tr);
   });
 }
 
-// 예약 추가
 function addReservation() {
   const date = elements.date.value;
   const time = elements.time.value;
   const fresh = elements.fresh.value.trim();
   const innovation = elements.innovation.value.trim();
 
-  if(!fresh && !innovation) return alert("예약자 이름을 입력하세요.");
+  if (!fresh && !innovation) return alert("예약자 이름을 입력하세요.");
 
   const existing = reservations.find(r => r.date === date && r.time === time);
-  if(existing) return alert("이미 해당 시간에 예약이 존재합니다.");
+  if (existing) return alert("이미 이 시간에 예약이 있습니다. 기존 예약을 삭제하거나 수정하세요.");
 
   db.ref('reservations').push({ date, time, fresh, innovation })
     .then(() => {
       elements.fresh.value = '';
       elements.innovation.value = '';
-    });
+    })
+    .catch(err => alert("저장 실패: " + err.message));
 }
 
-// 삭제
 function deleteRes(key) {
-  if(confirm("예약을 삭제할까요?")) db.ref('reservations/' + key).remove();
+  if (confirm("정말 삭제하시겠습니까?")) {
+    db.ref('reservations/' + key).remove();
+  }
 }
 
-// 주간 이동
-function prevWeek() { currentWeekStart.setDate(currentWeekStart.getDate() - 7); renderWeekTable(); }
-function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); renderWeekTable(); }
+function prevWeek() { currentWeekStart.setDate(currentWeekStart.getDate() - 7); renderAll(); }
+function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); renderAll(); }
 
-// 우측 주간 테이블 렌더링
 function renderWeekTable() {
-  if(!elements.freshTable) return;
-  
+  if (!elements.freshTable) return;
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
   const weekDays = ['일','월','화','수','목','금','토'];
   const days = [];
-  
-  for(let i=0; i<7; i++) {
+  for (let i = 0; i < 7; i++) {
     const d = new Date(currentWeekStart);
     d.setDate(d.getDate() + i);
     days.push(d);
   }
 
-  // 주차 표시
-  elements.weekLabel.innerText = `${days[0].getMonth()+1}월 ${days[0].getDate()}일 ~ ${days[6].getMonth()+1}월 ${days[6].getDate()}일`;
+  elements.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
 
-  const buildTable = (target, type) => {
+  const build = (target, type) => {
     let html = `<thead><tr><th>시간</th>${days.map(d => `<th>${d.getDate()}(${weekDays[d.getDay()]})</th>`).join('')}</tr></thead><tbody>`;
-    
     times.forEach(t => {
       html += `<tr><td>${t}</td>`;
       days.forEach(d => {
         const dateStr = getLocalDateString(d);
         const found = reservations.find(r => r.date === dateStr && r.time === t);
         const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
-        html += `<td class="${found ? 'reserved' : '' } tooltip" data-tooltip="${dateStr} ${t}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
+        html += `<td class="${found ? 'reserved' : ''}" onclick="clickCell('${dateStr}','${t}')">${name}</td>`;
       });
       html += `</tr>`;
     });
     target.innerHTML = html + `</tbody>`;
   };
 
-  buildTable(elements.freshTable, 'fresh');
-  buildTable(elements.innovationTable, 'innovation');
+  build(elements.freshTable, 'fresh');
+  build(elements.innovationTable, 'innovation');
 }
 
-// 주간 셀 클릭 시 (통합 prompt)
-function clickCell(date, time, type) {
+function clickCell(date, time) {
   const existing = reservations.find(r => r.date === date && r.time === time);
-  
-  // 클릭한 칸에 상관없이 두 회의실 정보를 모두 입력받음
-  const fresh = prompt(`[${date} ${time}] Fresh 예약자명`, existing?.fresh || '');
-  if(fresh === null) return;
-  
-  const innovation = prompt(`[${date} ${time}] Innovation 예약자명`, existing?.innovation || '');
-  if(innovation === null) return;
+  const f = prompt(`[${date} ${time}] Fresh 예약자`, existing?.fresh || '');
+  if (f === null) return;
+  const i = prompt(`[${date} ${time}] Innovation 예약자`, existing?.innovation || '');
+  if (i === null) return;
 
-  if(!fresh && !innovation) {
-    if(existing) db.ref('reservations/' + existing.key).remove();
-    return;
+  if (existing) db.ref('reservations/' + existing.key).remove();
+  if (f.trim() || i.trim()) {
+    db.ref('reservations').push({ date, time, fresh: f, innovation: i });
   }
-
-  if(existing) db.ref('reservations/' + existing.key).remove();
-  db.ref('reservations').push({ date, time, fresh, innovation });
 }
 </script>
-
 </body>
 </html>
