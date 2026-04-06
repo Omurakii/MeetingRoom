@@ -4,18 +4,21 @@
 <meta charset="UTF-8">
 <title>회의실 예약 시스템</title>
 <style>
-/* CSS는 동일하므로 가독성을 위해 생략 가능하지만, 안정성을 위해 포함합니다 */
-body { font-family: 'Malgun Gothic', sans-serif; padding:20px; display:flex; gap:20px; background-color: #f9f9f9; }
-.left { flex:1.5; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.right { flex:2.5; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-table { border-collapse: collapse; width:100%; margin-top: 10px; table-layout: fixed; }
-th, td { border:1px solid #ddd; text-align:center; height: 35px; font-size: 12px; }
-th { background:#f4f4f4; }
-.reserved { background:#fff3cd !important; font-weight:bold; }
-td { cursor:pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.week-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px; }
-button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; padding: 8px 12px; }
-input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    body { font-family: 'Malgun Gothic', sans-serif; padding:20px; display:flex; gap:20px; background-color: #f9f9f9; }
+    .left { flex:1.5; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .right { flex:2.5; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    table { border-collapse: collapse; width:100%; margin-top: 10px; table-layout: fixed; }
+    th, td { border:1px solid #ddd; text-align:center; height: 38px; font-size: 12px; }
+    th { background:#f4f4f4; font-weight: bold; }
+    .reserved { background:#fff3cd !important; font-weight:bold; color: #856404; }
+    td { cursor:pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td:hover { background-color: #fcfcfc; }
+    .week-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
+    button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; padding: 8px 15px; font-weight: bold; }
+    button:hover { background-color: #0056b3; }
+    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn-delete { background:#dc3545; padding:4px 8px; font-size:11px; margin:0; }
+    h4 { margin: 20px 0 10px 0; padding-left: 5px; border-left: 4px solid #007bff; }
 </style>
 </head>
 <body>
@@ -39,7 +42,7 @@ input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
   <h3>선택 날짜 현황 (<span id="selectedDateDisplay"></span>)</h3>
   <table id="todayTable">
     <thead>
-      <tr><th style="width:60px;">시간</th><th>Fresh</th><th>Innovation</th><th style="width:50px;">관리</th></tr>
+      <tr><th style="width:60px;">시간</th><th>Fresh</th><th>Innovation</th><th style="width:60px;">관리</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -48,12 +51,12 @@ input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 <div class="right">
   <div class="week-nav">
     <button onclick="prevWeek()">◀</button>
-    <h3 id="weekLabel" style="margin:0;"></h3>
+    <h3 id="weekLabel" style="margin:0; min-width: 150px; text-align: center;"></h3>
     <button onclick="nextWeek()">▶</button>
   </div>
   <h4>📍 Fresh 회의실</h4>
   <table id="freshWeekTable"></table>
-  <h4 style="margin-top:20px;">📍 Innovation 회의실</h4>
+  <h4>📍 Innovation 회의실</h4>
   <table id="innovationWeekTable"></table>
 </div>
 
@@ -61,165 +64,174 @@ input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// ⚠️ 주의: 반드시 본인의 실제 Firebase 정보를 넣어야 작동합니다.
+// 1. 제공해주신 Firebase 설정 적용
 const firebaseConfig = {
-  apiKey: "AIza...", 
-  authDomain: "...",
-  databaseURL: "https://xxx-default-rtdb.firebaseio.com/" 
+  apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
+  authDomain: "meeting-room-9382e.firebaseapp.com",
+  databaseURL: "https://meeting-room-9382e-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "meeting-room-9382e",
+  storageBucket: "meeting-room-9382e.firebasestorage.app",
+  messagingSenderId: "443110031923",
+  appId: "1:443110031923:web:9e3154876e475fc9225946",
+  measurementId: "G-XRQPQCVZQ1"
 };
 
+// 2. Firebase 초기화 (호환성 모드)
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let reservations = [];
 let currentWeekStart = getStartOfWeek(new Date());
 
-const elements = {};
+const el = {
+    date: document.getElementById('date'),
+    time: document.getElementById('time'),
+    fresh: document.getElementById('fresh'),
+    innovation: document.getElementById('innovation'),
+    freshTable: document.getElementById('freshWeekTable'),
+    innovationTable: document.getElementById('innovationWeekTable'),
+    todayTbody: document.querySelector('#todayTable tbody'),
+    weekLabel: document.getElementById('weekLabel'),
+    dateDisplay: document.getElementById('selectedDateDisplay')
+};
 
 document.addEventListener("DOMContentLoaded", () => {
-  // DOM 요소 참조
-  elements.date = document.getElementById('date');
-  elements.time = document.getElementById('time');
-  elements.fresh = document.getElementById('fresh');
-  elements.innovation = document.getElementById('innovation');
-  elements.freshTable = document.getElementById('freshWeekTable');
-  elements.innovationTable = document.getElementById('innovationWeekTable');
-  elements.todayTbody = document.querySelector('#todayTable tbody');
-  elements.weekLabel = document.getElementById('weekLabel');
-  elements.dateDisplay = document.getElementById('selectedDateDisplay');
+    // 초기 날짜 세팅
+    const now = new Date();
+    const todayStr = getLocalDateString(now);
+    el.date.value = todayStr;
+    el.dateDisplay.innerText = todayStr;
 
-  // 오늘 날짜 초기값 설정
-  const todayStr = getLocalDateString(new Date());
-  elements.date.value = todayStr;
-  elements.dateDisplay.innerText = todayStr;
+    el.date.onchange = () => {
+        el.dateDisplay.innerText = el.date.value;
+        renderAll();
+    };
 
-  // 날짜 변경 이벤트
-  elements.date.onchange = () => {
-    elements.dateDisplay.innerText = elements.date.value;
-    renderAll();
-  };
-
-  // 🔥 핵심: 데이터 로드 시점 관리
-  db.ref('reservations').on('value', snapshot => {
-    const data = snapshot.val();
-    reservations = data ? Object.entries(data).map(([k, v]) => ({ key: k, ...v })) : [];
-    renderAll(); // 데이터가 오면 무조건 다시 그림
-  }, error => {
-    console.error("Firebase 로드 에러:", error);
-    alert("데이터를 불러오지 못했습니다. Firebase 설정을 확인하세요.");
-  });
-
-  // 최초 1회 강제 렌더링
-  renderAll();
+    // 데이터 실시간 동기화
+    db.ref('reservations').on('value', snapshot => {
+        const data = snapshot.val();
+        reservations = data ? Object.entries(data).map(([k, v]) => ({ key: k, ...v })) : [];
+        renderAll(); 
+    }, error => {
+        console.error("Firebase Error:", error);
+    });
 });
 
 function getLocalDateString(date) {
-  const d = new Date(date);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getStartOfWeek(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일 기준
-  return new Date(d.setDate(diff));
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
 }
 
 function renderAll() {
-  renderSelectedDate();
-  renderWeekTable();
+    renderSelectedDate();
+    renderWeekTable();
 }
 
 function renderSelectedDate() {
-  if (!elements.todayTbody) return;
-  elements.todayTbody.innerHTML = '';
-  const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
+    if (!el.todayTbody) return;
+    el.todayTbody.innerHTML = '';
+    const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
 
-  times.forEach(t => {
-    const found = reservations.find(r => r.date === elements.date.value && r.time === t);
-    const tr = document.createElement('tr');
-    if (found) tr.className = 'reserved';
-    tr.innerHTML = `
-      <td>${t}</td>
-      <td>${found?.fresh || ''}</td>
-      <td>${found?.innovation || ''}</td>
-      <td>${found ? `<button style="background:#dc3545; padding:2px 5px; font-size:11px;" onclick="deleteRes('${found.key}')">삭제</button>` : ''}</td>
-    `;
-    elements.todayTbody.appendChild(tr);
-  });
+    times.forEach(t => {
+        const found = reservations.find(r => r.date === el.date.value && r.time === t);
+        const tr = document.createElement('tr');
+        if (found) tr.className = 'reserved';
+        
+        tr.innerHTML = `
+            <td>${t}</td>
+            <td>${found?.fresh || ''}</td>
+            <td>${found?.innovation || ''}</td>
+            <td>${found ? `<button class="btn-delete" onclick="deleteRes('${found.key}')">삭제</button>` : ''}</td>
+        `;
+        el.todayTbody.appendChild(tr);
+    });
 }
 
 function addReservation() {
-  const date = elements.date.value;
-  const time = elements.time.value;
-  const fresh = elements.fresh.value.trim();
-  const innovation = elements.innovation.value.trim();
+    const date = el.date.value;
+    const time = el.time.value;
+    const fresh = el.fresh.value.trim();
+    const innovation = el.innovation.value.trim();
 
-  if (!fresh && !innovation) return alert("예약자 이름을 입력하세요.");
+    if (!fresh && !innovation) {
+        alert("예약자 이름을 입력해 주세요.");
+        return;
+    }
 
-  const existing = reservations.find(r => r.date === date && r.time === time);
-  if (existing) return alert("이미 이 시간에 예약이 있습니다. 기존 예약을 삭제하거나 수정하세요.");
+    const existing = reservations.find(r => r.date === date && r.time === time);
+    if (existing) {
+        if(!confirm("해당 시간에 이미 예약이 있습니다. 변경하시겠습니까?")) return;
+        db.ref('reservations/' + existing.key).remove();
+    }
 
-  db.ref('reservations').push({ date, time, fresh, innovation })
-    .then(() => {
-      elements.fresh.value = '';
-      elements.innovation.value = '';
-    })
-    .catch(err => alert("저장 실패: " + err.message));
+    db.ref('reservations').push({ date, time, fresh, innovation })
+        .then(() => {
+            el.fresh.value = '';
+            el.innovation.value = '';
+        })
+        .catch(err => alert("오류 발생: " + err.message));
 }
 
 function deleteRes(key) {
-  if (confirm("정말 삭제하시겠습니까?")) {
-    db.ref('reservations/' + key).remove();
-  }
+    if (confirm("삭제하시겠습니까?")) {
+        db.ref('reservations/' + key).remove();
+    }
 }
 
 function prevWeek() { currentWeekStart.setDate(currentWeekStart.getDate() - 7); renderAll(); }
 function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); renderAll(); }
 
 function renderWeekTable() {
-  if (!elements.freshTable) return;
-  const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
-  const weekDays = ['일','월','화','수','목','금','토'];
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(currentWeekStart);
-    d.setDate(d.getDate() + i);
-    days.push(d);
-  }
+    if (!el.freshTable || !el.innovationTable) return;
+    const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
+    const weekDays = ['일','월','화','수','목','금','토'];
+    const days = [];
+    
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(currentWeekStart);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+    }
 
-  elements.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
+    el.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
 
-  const build = (target, type) => {
-    let html = `<thead><tr><th>시간</th>${days.map(d => `<th>${d.getDate()}(${weekDays[d.getDay()]})</th>`).join('')}</tr></thead><tbody>`;
-    times.forEach(t => {
-      html += `<tr><td>${t}</td>`;
-      days.forEach(d => {
-        const dateStr = getLocalDateString(d);
-        const found = reservations.find(r => r.date === dateStr && r.time === t);
-        const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
-        html += `<td class="${found ? 'reserved' : ''}" onclick="clickCell('${dateStr}','${t}')">${name}</td>`;
-      });
-      html += `</tr>`;
-    });
-    target.innerHTML = html + `</tbody>`;
-  };
+    const build = (target, type) => {
+        let html = `<thead><tr><th>시간</th>${days.map(d => `<th>${d.getDate()}(${weekDays[d.getDay()]})</th>`).join('')}</tr></thead><tbody>`;
+        times.forEach(t => {
+            html += `<tr><td>${t}</td>`;
+            days.forEach(d => {
+                const dateStr = getLocalDateString(d);
+                const found = reservations.find(r => r.date === dateStr && r.time === t);
+                const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
+                html += `<td class="${found ? 'reserved' : ''}" onclick="clickCell('${dateStr}','${t}')">${name}</td>`;
+            });
+            html += `</tr>`;
+        });
+        target.innerHTML = html + `</tbody>`;
+    };
 
-  build(elements.freshTable, 'fresh');
-  build(elements.innovationTable, 'innovation');
+    build(el.freshTable, 'fresh');
+    build(el.innovationTable, 'innovation');
 }
 
 function clickCell(date, time) {
-  const existing = reservations.find(r => r.date === date && r.time === time);
-  const f = prompt(`[${date} ${time}] Fresh 예약자`, existing?.fresh || '');
-  if (f === null) return;
-  const i = prompt(`[${date} ${time}] Innovation 예약자`, existing?.innovation || '');
-  if (i === null) return;
+    const existing = reservations.find(r => r.date === date && r.time === time);
+    const f = prompt(`[${date} ${time}] Fresh 예약자`, existing?.fresh || '');
+    if (f === null) return;
+    const i = prompt(`[${date} ${time}] Innovation 예약자`, existing?.innovation || '');
+    if (i === null) return;
 
-  if (existing) db.ref('reservations/' + existing.key).remove();
-  if (f.trim() || i.trim()) {
-    db.ref('reservations').push({ date, time, fresh: f, innovation: i });
-  }
+    if (existing) db.ref('reservations/' + existing.key).remove();
+    if (f.trim() || i.trim()) {
+        db.ref('reservations').push({ date, time, fresh: f, innovation: i });
+    }
 }
 </script>
 </body>
