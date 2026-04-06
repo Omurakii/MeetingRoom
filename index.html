@@ -10,18 +10,13 @@ body { font-family: Arial; padding:20px; display:flex; gap:20px; }
 .left { flex:2; }
 .right { flex:1; }
 
-table { border-collapse: collapse; width:100%; margin-top:20px; }
-th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+/* 공통 테이블 */
+table { border-collapse: collapse; width:100%; }
+th, td { border:1px solid #ccc; text-align:center; }
 
-/* 동일 너비 */
-th:nth-child(2), th:nth-child(3),
-td:nth-child(2), td:nth-child(3) {
-  width:160px;
-}
-
+/* 좌측 테이블 */
+.left th, .left td { padding:8px; }
 th { background:#f0f0f0; }
-
-input, select, button { padding:6px; margin:4px; }
 
 /* 예약 표시 */
 .reserved {
@@ -29,8 +24,41 @@ input, select, button { padding:6px; margin:4px; }
   font-weight:bold;
 }
 
-/* 클릭 가능 */
+/* 클릭 */
 td { cursor:pointer; }
+
+/* 🔥 핵심: 우측 테이블 정렬 */
+.right table {
+  table-layout: fixed;
+  width:100%;
+  font-size:11px;
+}
+
+.right th, .right td {
+  padding:2px;
+  height:24px;
+  overflow:hidden;
+  white-space:nowrap;
+}
+
+/* 시간 열 */
+.right th:first-child,
+.right td:first-child {
+  width:50px;
+  font-size:10px;
+}
+
+/* 날짜 열 균등 */
+.right th:not(:first-child),
+.right td:not(:first-child) {
+  width: calc((100% - 50px) / 7);
+}
+
+/* 헤더 줄바꿈 */
+.right th {
+  font-size:10px;
+  line-height:1.2;
+}
 
 /* 툴팁 */
 .tooltip { position:relative; }
@@ -43,15 +71,14 @@ td { cursor:pointer; }
   transform:translateX(-50%);
   background:#333;
   color:#fff;
-  padding:6px 10px;
-  border-radius:6px;
+  padding:5px 8px;
+  border-radius:5px;
+  font-size:11px;
   white-space:nowrap;
-  font-size:12px;
   z-index:10;
 }
 
-.right table td { height:40px; }
-.right table th { background:#fafafa; }
+input, select, button { padding:6px; margin:4px; }
 
 </style>
 </head>
@@ -104,13 +131,9 @@ td { cursor:pointer; }
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
-  authDomain: "meeting-room-9382e.firebaseapp.com",
-  databaseURL: "https://meeting-room-9382e-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "meeting-room-9382e",
-  storageBucket: "meeting-room-9382e.firebasestorage.app",
-  messagingSenderId: "443110031923",
-  appId: "1:443110031923:web:9e3154876e475fc9225946"
+  apiKey: "AIza...",
+  authDomain: "...",
+  databaseURL: "...",
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -120,68 +143,33 @@ let reservations = [];
 
 // 오늘 날짜
 window.onload = () => {
-  const today = new Date().toISOString().slice(0,10);
-  document.getElementById('date').value = today;
+  document.getElementById('date').value = new Date().toISOString().slice(0,10);
 };
 
-// 예약 추가 (중복 방지)
+// 예약
 function addReservation() {
-  const date = document.getElementById('date').value;
-  const time = document.getElementById('time').value;
-  const fresh = document.getElementById('fresh').value;
-  const innovation = document.getElementById('innovation').value;
+  const date = dateEl.value;
+  const time = timeEl.value;
+  const fresh = freshEl.value;
+  const innovation = innovationEl.value;
 
-  if(!date) return alert('날짜 선택');
-
-  db.ref('reservations')
-    .orderByChild('date')
-    .equalTo(date)
-    .once('value', snapshot => {
-
-      const data = snapshot.val();
-
-      if (data) {
-        const exists = Object.values(data).find(r => r.time === time);
-        if (exists) {
-          alert('이미 예약된 시간입니다!');
-          return;
-        }
-      }
-
-      db.ref('reservations').push({ date, time, fresh, innovation });
-    });
-}
-
-// 삭제
-function deleteReservation(key) {
-  const ok = confirm("해당 시간에 예약한 분이 맞으신가요?\n\n확인 = 삭제 / 취소 = 유지");
-  if (!ok) return;
-  db.ref('reservations/' + key).remove();
+  db.ref('reservations').push({ date, time, fresh, innovation });
 }
 
 // Firebase
 db.ref('reservations').on('value', snapshot => {
   const data = snapshot.val();
-
-  if (!data) {
-    reservations = [];
-  } else {
-    reservations = Object.entries(data).map(([key, value]) => ({
-      key,
-      ...value
-    }));
-  }
+  reservations = data ? Object.entries(data).map(([k,v]) => ({key:k,...v})) : [];
 
   renderSelectedDate();
   renderWeekTable();
 });
 
-// 날짜 변경
 document.getElementById('date').addEventListener('change', renderSelectedDate);
 
-// 선택 날짜 테이블
+// 좌측
 function renderSelectedDate() {
-  const selectedDate = document.getElementById('date').value;
+  const selectedDate = dateEl.value;
   const tbody = document.querySelector('#todayTable tbody');
   tbody.innerHTML = '';
 
@@ -190,21 +178,24 @@ function renderSelectedDate() {
   times.forEach(t => {
     const found = reservations.find(r => r.date === selectedDate && r.time === t);
 
-    const row = document.createElement('tr');
-    if(found) row.classList.add('reserved');
-
-    row.innerHTML = `
+    tbody.innerHTML += `
+    <tr class="${found?'reserved':''}">
       <td>${t}</td>
-      <td>${found?.fresh || ''}</td>
-      <td>${found?.innovation || ''}</td>
-      <td>${found ? `<button onclick="deleteReservation('${found.key}')">삭제</button>` : ''}</td>
-    `;
-
-    tbody.appendChild(row);
+      <td>${found?.fresh||''}</td>
+      <td>${found?.innovation||''}</td>
+      <td>${found?`<button onclick="deleteReservation('${found.key}')">삭제</button>`:''}</td>
+    </tr>`;
   });
 }
 
-// ===== 주간 기능 =====
+// 삭제
+function deleteReservation(key) {
+  if(confirm("삭제하시겠습니까?")) {
+    db.ref('reservations/' + key).remove();
+  }
+}
+
+// ===== 주간 =====
 
 let currentWeekStart = getStartOfWeek(new Date());
 
@@ -226,9 +217,6 @@ function nextWeek() {
 }
 
 function renderWeekTable() {
-  const freshTable = document.getElementById('freshWeekTable');
-  const innovationTable = document.getElementById('innovationWeekTable');
-
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
 
   const days = [];
@@ -238,9 +226,8 @@ function renderWeekTable() {
     days.push(d);
   }
 
-  const month = days[0].getMonth() + 1;
-  const weekNum = Math.ceil(days[0].getDate() / 7);
-  document.getElementById('weekLabel').innerText = `${month}월 ${weekNum}주`;
+  document.getElementById('weekLabel').innerText =
+    `${days[0].getMonth()+1}월 ${Math.ceil(days[0].getDate()/7)}주`;
 
   function createTable(table, type) {
     let html = '<tr><th>시간</th>';
@@ -258,22 +245,14 @@ function renderWeekTable() {
         const dateStr = d.toISOString().slice(0,10);
         const found = reservations.find(r => r.date === dateStr && r.time === t);
 
-        let value = '';
-        let className = '';
-        let tooltip = '';
-
-        if(found) {
-          value = type === 'fresh' ? found.fresh : found.innovation;
-          if(value) className = 'reserved';
-
-          tooltip = `날짜:${dateStr} | 시간:${t} | Fresh:${found.fresh || '-'} | Innovation:${found.innovation || '-'}`;
-        }
+        let value = found ? (type==='fresh'?found.fresh:found.innovation) : '';
+        let tooltip = found ? `${dateStr} ${t}` : '';
 
         html += `
-        <td class="${className} tooltip"
+        <td class="${found?'reserved':''} tooltip"
             data-tooltip="${tooltip}"
             onclick="openReservationModal('${dateStr}','${t}')">
-            ${value || ''}
+            ${value}
         </td>`;
       });
 
@@ -283,44 +262,25 @@ function renderWeekTable() {
     table.innerHTML = html;
   }
 
-  createTable(freshTable, 'fresh');
-  createTable(innovationTable, 'innovation');
+  createTable(freshWeekTable,'fresh');
+  createTable(innovationWeekTable,'innovation');
 }
 
-// 클릭 → 예약/수정/삭제
-function openReservationModal(date, time) {
-  const existing = reservations.find(r => r.date === date && r.time === time);
+// 클릭
+function openReservationModal(date,time){
+  const existing = reservations.find(r => r.date===date && r.time===time);
 
-  let fresh = existing?.fresh || '';
-  let innovation = existing?.innovation || '';
+  let fresh = prompt("Fresh", existing?.fresh||'');
+  if(fresh===null) return;
 
-  const action = prompt(
-`[${date} ${time}]
-1 → 예약/수정
-2 → 삭제`
-  );
+  let innovation = prompt("Innovation", existing?.innovation||'');
+  if(innovation===null) return;
 
-  if (!action) return;
-
-  if (action === '2') {
-    if (!existing) return alert('삭제할 예약 없음');
-    if (!confirm('삭제하시겠습니까?')) return;
-
-    db.ref('reservations/' + existing.key).remove();
-    return;
+  if(existing){
+    db.ref('reservations/'+existing.key).remove();
   }
 
-  fresh = prompt('Fresh', fresh);
-  if (fresh === null) return;
-
-  innovation = prompt('Innovation', innovation);
-  if (innovation === null) return;
-
-  if (existing) {
-    db.ref('reservations/' + existing.key).remove();
-  }
-
-  db.ref('reservations').push({ date, time, fresh, innovation });
+  db.ref('reservations').push({date,time,fresh,innovation});
 }
 </script>
 
