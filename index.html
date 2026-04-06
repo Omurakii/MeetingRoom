@@ -24,7 +24,6 @@
     button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 6px; padding: 10px 18px; font-weight: bold; transition: 0.3s; }
     button:hover { background-color: #0056b3; }
     
-    /* 개별 삭제 버튼 스타일 */
     .btn-delete { background: #ff4d4f; padding: 4px 6px; font-size: 11px; border-radius: 4px; font-weight: normal; }
     .btn-delete:hover { background: #d32f2f; }
 
@@ -120,8 +119,13 @@ document.addEventListener("DOMContentLoaded", () => {
     el.date.value = todayStr;
     el.dateDisplay.innerText = todayStr;
 
+    // 날짜 변경 시 로직 수정 (우측 주간 이동 포함)
     el.date.onchange = () => {
+        const selectedDate = new Date(el.date.value);
         el.dateDisplay.innerText = el.date.value;
+        
+        // 💡 핵심: 선택한 날짜에 맞춰 주간 시작일 업데이트
+        currentWeekStart = getStartOfWeek(selectedDate);
         renderAll();
     };
 
@@ -140,8 +144,11 @@ function getLocalDateString(date) {
 function getStartOfWeek(date) {
     const d = new Date(date);
     const day = d.getDay();
+    // 일요일(0)이면 6일 전으로, 월요일(1)이면 그대로, 나머지는 해당 월요일로 계산
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
+    const monday = new Date(d.setDate(diff));
+    monday.setHours(0,0,0,0);
+    return monday;
 }
 
 function renderAll() {
@@ -149,7 +156,6 @@ function renderAll() {
     renderWeekTable();
 }
 
-// 좌측 목록: 회의실별 삭제 버튼 분리
 function renderSelectedDate() {
     if (!el.todayTbody) return;
     el.todayTbody.innerHTML = '';
@@ -158,7 +164,6 @@ function renderSelectedDate() {
     times.forEach(t => {
         const found = reservations.find(r => r.date === el.date.value && r.time === t);
         const tr = document.createElement('tr');
-        
         const freshName = found?.fresh || '';
         const innovName = found?.innovation || '';
 
@@ -173,25 +178,19 @@ function renderSelectedDate() {
     });
 }
 
-// 예약 추가 로직
 function addReservation() {
     const date = el.date.value;
     const time = el.time.value;
     const fresh = el.fresh.value.trim();
     const innovation = el.innovation.value.trim();
-
     if (!fresh && !innovation) return alert("예약자 이름을 입력해 주세요.");
 
     const existing = reservations.find(r => r.date === date && r.time === time);
-    
     let newData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
-    
-    // 입력된 값이 있는 경우에만 덮어쓰고, 없으면 기존 값 유지
     if (fresh) newData.fresh = fresh;
     if (innovation) newData.innovation = innovation;
 
     if (existing) db.ref('reservations/' + existing.key).remove();
-    
     delete newData.key;
     db.ref('reservations').push(newData).then(() => {
         el.fresh.value = '';
@@ -199,20 +198,14 @@ function addReservation() {
     });
 }
 
-// 특정 회의실만 삭제하는 함수
 function deleteRoomRes(key, type) {
-    if (!confirm("해당 회의실 예약을 삭제하시겠습니까?")) return;
-    
+    if (!confirm("해당 예약을 삭제하시겠습니까?")) return;
     const target = reservations.find(r => r.key === key);
     if (!target) return;
-
     let updateData = { ...target };
     if (type === 'fresh') updateData.fresh = '';
     else updateData.innovation = '';
-
     db.ref('reservations/' + key).remove();
-
-    // 만약 양쪽 다 비게 되면 아예 삭제, 한쪽이라도 남으면 업데이트
     if (updateData.fresh || updateData.innovation) {
         delete updateData.key;
         db.ref('reservations').push(updateData);
@@ -232,9 +225,7 @@ function renderWeekTable() {
         d.setDate(d.getDate() + i);
         days.push(d);
     }
-
     el.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
-
     const build = (target, type) => {
         let html = `<thead><tr><th style="width:60px;">시간</th>${days.map(d => `<th>${d.getDate()}(${weekDays[d.getDay()]})</th>`).join('')}</tr></thead><tbody>`;
         times.forEach(t => {
@@ -243,8 +234,7 @@ function renderWeekTable() {
                 const dateStr = getLocalDateString(d);
                 const found = reservations.find(r => r.date === dateStr && r.time === t);
                 const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
-                const isReserved = name ? 'reserved' : '';
-                html += `<td class="${isReserved}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
+                html += `<td class="${name ? 'reserved' : ''}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
             });
             html += `</tr>`;
         });
@@ -258,14 +248,11 @@ function clickCell(date, time, type) {
     const existing = reservations.find(r => r.date === date && r.time === time);
     const typeLabel = (type === 'fresh') ? 'Fresh' : 'Innovation';
     const currentName = existing ? (type === 'fresh' ? existing.fresh : existing.innovation) : '';
-    
     const newName = prompt(`[${date} ${time}] ${typeLabel} 예약자명`, currentName || '');
     if (newName === null) return;
-
     let updateData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
     if (type === 'fresh') updateData.fresh = newName.trim();
     else updateData.innovation = newName.trim();
-
     if (existing) db.ref('reservations/' + existing.key).remove();
     if (updateData.fresh || updateData.innovation) {
         delete updateData.key;
