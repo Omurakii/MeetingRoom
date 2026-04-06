@@ -18,7 +18,6 @@
     th, td { border: 1px solid #e0e4e8; text-align: center; height: 28px; font-size: 11px; transition: 0.1s; position: relative; }
     th { background: #f8f9fa; font-weight: 600; color: #555; }
     
-    /* 💡 선택된 날짜 하이라이트 스타일 */
     .highlight-col { border-left: 2px dashed #e76115 !important; border-right: 2px dashed #e76115 !important; background-color: #fffaf0; }
     th.highlight-col { border-top: 2px dashed #e76115 !important; background-color: #ffe0cc !important; }
     tr:last-child td.highlight-col { border-bottom: 2px dashed #e76115 !important; }
@@ -115,7 +114,6 @@ for (let h = 8; h <= 17; h++) {
         TIME_SLOTS.push(`${String(h).padStart(2, '0')}:${m}`);
     }
 }
-TIME_SLOTS.push("17:30");
 
 let reservations = [];
 let currentWeekStart = getStartOfWeek(new Date());
@@ -217,7 +215,7 @@ async function addReservation() {
     const startIdx = TIME_SLOTS.indexOf(startT);
     const endIdx = TIME_SLOTS.indexOf(endT);
     const targetSlots = TIME_SLOTS.slice(startIdx, endIdx);
-    const groupId = Date.now(); // 💡 일괄 삭제를 위한 그룹 ID 생성
+    const groupId = Date.now(); 
 
     for (let t of targetSlots) {
         const existing = reservations.find(r => r.date === date && r.time === t);
@@ -241,26 +239,45 @@ async function addReservation() {
     el.fresh.value = ''; el.innovation.value = ''; alert("예약되었습니다.");
 }
 
-// 💡 일괄 삭제 기능 구현
+// 💡 삭제 질문 분기 로직 업데이트
 async function deleteBatch(key, type) {
     const target = reservations.find(r => r.key === key);
     if (!target) return;
     const gid = type === 'fresh' ? target.freshGid : target.innovGid;
     
-    if (!confirm("연결된 모든 시간 예약을 일괄 삭제하시겠습니까?")) return;
-
-    // 그룹 ID가 있는 것들 모두 찾기
+    // 동일 그룹 ID를 가진 예약들 필터링
     const targetsToDelete = reservations.filter(r => (type === 'fresh' ? r.freshGid : r.innovGid) === gid && (gid !== undefined));
     
-    for (let item of targetsToDelete) {
-        let updateData = { ...item };
+    // 질문 내용 결정
+    let confirmMsg = "해당 회의실 예약을 취소하시겠습니까?"; // 기본 메시지
+    if (targetsToDelete.length > 1) {
+        confirmMsg = "연결된 모든 시간 예약을 일괄 취소하시겠습니까?";
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    if (targetsToDelete.length <= 1) {
+        // 단일 건 삭제
+        let updateData = { ...target };
         if (type === 'fresh') { updateData.fresh = ''; delete updateData.freshGid; }
         else { updateData.innovation = ''; delete updateData.innovGid; }
         
-        await db.ref('reservations/' + item.key).remove();
+        await db.ref('reservations/' + key).remove();
         if (updateData.fresh || updateData.innovation) {
             delete updateData.key;
             await db.ref('reservations').push(updateData);
+        }
+    } else {
+        // 일괄 건 삭제
+        for (let item of targetsToDelete) {
+            let updateData = { ...item };
+            if (type === 'fresh') { updateData.fresh = ''; delete updateData.freshGid; }
+            else { updateData.innovation = ''; delete updateData.innovGid; }
+            await db.ref('reservations/' + item.key).remove();
+            if (updateData.fresh || updateData.innovation) {
+                delete updateData.key;
+                await db.ref('reservations').push(updateData);
+            }
         }
     }
 }
@@ -278,7 +295,7 @@ function renderWeekTable() {
         days.push(d);
     }
     el.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
-    const selectedDateStr = el.date.value; // 💡 하이라이트 기준 날짜
+    const selectedDateStr = el.date.value;
 
     const build = (target, type) => {
         let html = `<thead><tr><th style="width:50px;">시간</th>`;
@@ -309,7 +326,7 @@ function renderWeekTable() {
 function clickCell(date, time, type) {
     const existing = reservations.find(r => r.date === date && r.time === time);
     const currentName = existing ? (type === 'fresh' ? existing.fresh : existing.innovation) : '';
-    if (currentName) return deleteBatch(existing.key, type); // 이미 있으면 일괄 삭제 호출
+    if (currentName) return deleteBatch(existing.key, type);
 
     const newName = prompt(`[${date} ${time}] 예약자명`, "");
     if (!newName) return;
