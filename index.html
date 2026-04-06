@@ -11,6 +11,7 @@ body { font-family: Arial; padding:20px; display:flex; gap:20px; }
 .right { flex:1; }
 table { border-collapse: collapse; width:100%; margin-top:20px; }
 th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+th:nth-child(2), th:nth-child(3), td:nth-child(2), td:nth-child(3) { width: 150px; }
 th { background:#f0f0f0; }
 input, select, button { padding:6px; margin:4px; }
 .reserved { background:#ffe58a; }
@@ -102,6 +103,12 @@ function addReservation() {
 }
 
 function deleteReservation(key) {
+  const isConfirmed = confirm("해당 시간에 예약한 분이 맞으신가요?
+
+확인 = 삭제 / 취소 = 유지");
+
+  if (!isConfirmed) return;
+
   db.ref('reservations/' + key).remove();
 }
 
