@@ -18,7 +18,7 @@ th { background:#f0f0f0; }
 .reserved { background:#ffe58a; font-weight:bold; }
 td { cursor:pointer; }
 
-/* 🔥 우측 주간표 핵심 */
+/* 우측 주간표 */
 .right table {
   table-layout: fixed;
   width:100%;
@@ -57,6 +57,7 @@ td { cursor:pointer; }
   padding:4px 6px;
   font-size:10px;
   border-radius:4px;
+  z-index: 10; /* 툴팁이 가려지지 않도록 수정 */
 }
 
 input, select, button { padding:6px; margin:4px; }
@@ -68,7 +69,7 @@ input, select, button { padding:6px; margin:4px; }
 <div class="left">
 <h2>📅 회의실 예약</h2>
 
-<input type="date" id="date">
+<input type="date" id="date" onchange="renderSelectedDate()">
 <select id="time">
 <option>08:30</option><option>09:30</option><option>10:30</option>
 <option>11:30</option><option>12:30</option><option>13:30</option>
@@ -107,7 +108,7 @@ input, select, button { padding:6px; margin:4px; }
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-/* 🔥 Firebase 설정 (여기 네 값 유지) */
+/* Firebase 설정 (기존 정보 입력 필요) */
 const firebaseConfig = {
   apiKey: "AIza...",
   authDomain: "...",
@@ -117,16 +118,22 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🔥 DOM 안전 초기화 */
+/* DOM 안전 초기화 */
 let dateEl, timeEl, freshEl, innovationEl;
 let freshWeekTable, innovationWeekTable;
 
 let reservations = [];
 let currentWeekStart = getStartOfWeek(new Date());
 
-/* 🔥 DOM 로딩 이후 실행 (핵심) */
-document.addEventListener("DOMContentLoaded", () => {
+/* 🔥 한국 시간(로컬 시간) 기준 YYYY-MM-DD 문자열 반환 함수 */
+function getLocalDateString(date) {
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  return localDate.toISOString().slice(0, 10);
+}
 
+/* DOM 로딩 이후 실행 */
+document.addEventListener("DOMContentLoaded", () => {
   dateEl = document.getElementById('date');
   timeEl = document.getElementById('time');
   freshEl = document.getElementById('fresh');
@@ -135,39 +142,53 @@ document.addEventListener("DOMContentLoaded", () => {
   freshWeekTable = document.getElementById('freshWeekTable');
   innovationWeekTable = document.getElementById('innovationWeekTable');
 
-  dateEl.value = new Date().toISOString().slice(0,10);
+  // 🔥 UTC 오류 해결: 접속 기기의 로컬 날짜로 설정
+  dateEl.value = getLocalDateString(new Date());
 
-  /* 🔥 Firebase 이후 렌더 (핵심) */
+  /* Firebase 데이터 연동 */
   db.ref('reservations').on('value', snapshot => {
-
     const data = snapshot.val();
     reservations = data ? Object.entries(data).map(([k,v]) => ({key:k,...v})) : [];
-
     renderAll();
   });
-
 });
 
-/* 🔥 통합 렌더 */
+/* 통합 렌더 */
 function renderAll(){
   renderSelectedDate();
   renderWeekTable();
 }
 
-/* 예약 */
+/* 예약 추가 */
 function addReservation() {
+  if(!freshEl.value && !innovationEl.value) {
+    alert("예약자 이름을 입력해주세요.");
+    return;
+  }
+  
+  // 중복 예약 방지 로직 추가
+  const isExist = reservations.find(r => r.date === dateEl.value && r.time === timeEl.value);
+  if (isExist) {
+    alert("이미 예약된 시간입니다.");
+    return;
+  }
+
   db.ref('reservations').push({
     date: dateEl.value,
     time: timeEl.value,
     fresh: freshEl.value,
     innovation: innovationEl.value
   });
+  
+  // 입력창 초기화
+  freshEl.value = '';
+  innovationEl.value = '';
 }
 
-/* 좌측 */
+/* 좌측 당일 일정 렌더 */
 function renderSelectedDate() {
-
   const tbody = document.querySelector('#todayTable tbody');
+  if(!tbody) return;
   tbody.innerHTML = '';
 
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
@@ -187,14 +208,16 @@ function renderSelectedDate() {
 
 /* 삭제 */
 function deleteReservation(key){
-  db.ref('reservations/'+key).remove();
+  if(confirm("정말 예약을 삭제하시겠습니까?")) {
+    db.ref('reservations/'+key).remove();
+  }
 }
 
-/* 주 시작 */
+/* 주 시작일 계산 (월요일 기준) */
 function getStartOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day===0?-6:1);
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(d.setDate(diff));
 }
 
@@ -209,40 +232,48 @@ function nextWeek(){
   renderWeekTable();
 }
 
-/* 🔥 주간 테이블 */
-function renderWeekTable() {
+/* 🔥 해당 월의 몇 주차인지 계산하는 함수 */
+function getWeekOfMonth(date) {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const pastDaysOfMonth = date.getDate() - 1;
+  return Math.ceil((pastDaysOfMonth + firstDay.getDay() + 1) / 7);
+}
 
+/* 우측 주간 테이블 렌더 */
+function renderWeekTable() {
   if (!freshWeekTable || !innovationWeekTable) return;
 
   const times = ["08:30","09:30","10:30","11:30","12:30","13:30","14:30","15:30","16:30"];
-
   const days = [];
-  for(let i=0;i<7;i++){
+  
+  for(let i=0; i<7; i++){
     const d = new Date(currentWeekStart);
     d.setDate(d.getDate()+i);
     days.push(d);
   }
 
-  document.getElementById('weekLabel').innerText =
-    `${days[0].getMonth()+1}월 ${Math.ceil(days[0].getDate()/7)}주`;
+  // 🔥 주차 계산 개선: 목요일(배열의 인덱스 3)을 기준으로 월과 주차를 판별하고 괄호 안에 전체 날짜 범위 표시
+  const repDate = days[3]; 
+  document.getElementById('weekLabel').innerText = 
+    `${repDate.getMonth()+1}월 ${getWeekOfMonth(repDate)}주차 (${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()})`;
 
   function createTable(target, type){
-
     let html = '<tr><th>시간</th>';
 
     days.forEach(d=>{
-      html += `<th>${d.getDate()}일</th>`;
+      // 요일 표시 추가
+      const weekDays = ['일','월','화','수','목','금','토'];
+      html += `<th>${d.getDate()}일(${weekDays[d.getDay()]})</th>`;
     });
-
     html += '</tr>';
 
     times.forEach(t=>{
       html += `<tr><td>${t}</td>`;
 
       days.forEach(d=>{
-        const dateStr = d.toISOString().slice(0,10);
+        // 🔥 UTC 오류 해결: 달력 생성 시에도 로컬 타임 적용
+        const dateStr = getLocalDateString(d);
         const found = reservations.find(r=>r.date===dateStr && r.time===t);
-
         const name = found ? (type==='fresh'?found.fresh:found.innovation) : '';
 
         html += `
@@ -252,10 +283,8 @@ function renderWeekTable() {
             ${name}
         </td>`;
       });
-
       html += '</tr>';
     });
-
     target.innerHTML = html;
   }
 
@@ -263,16 +292,21 @@ function renderWeekTable() {
   createTable(innovationWeekTable,'innovation');
 }
 
-/* 클릭 */
+/* 주간표 칸 클릭 시 예약 */
 function openReservation(date,time){
-
   const existing = reservations.find(r=>r.date===date && r.time===time);
 
-  const fresh = prompt("Fresh", existing?.fresh||'');
+  const fresh = prompt(`[${date} ${time}] Fresh 예약자명`, existing?.fresh||'');
   if(fresh===null) return;
 
-  const innovation = prompt("Innovation", existing?.innovation||'');
+  const innovation = prompt(`[${date} ${time}] Innovation 예약자명`, existing?.innovation||'');
   if(innovation===null) return;
+
+  // 둘 다 비어있으면 삭제로 처리
+  if(fresh.trim() === '' && innovation.trim() === '') {
+    if(existing) db.ref('reservations/'+existing.key).remove();
+    return;
+  }
 
   if(existing){
     db.ref('reservations/'+existing.key).remove();
