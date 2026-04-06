@@ -12,20 +12,25 @@
     .notice { font-size: 11px; color: #666; margin-bottom: 15px; display: block; }
     
     h3 { margin-top: 0; color: #1a1a1a; font-size: 1.1rem; }
-    h4 { margin: 15px 0 8px 0; padding-left: 10px; border-left: 5px solid #007bff; font-size: 14px; }
+    h4 { margin: 15px 0 8px 0; padding-left: 10px; border-left: 5px solid #e76115; font-size: 14px; }
 
     table { border-collapse: collapse; width:100%; margin-top: 5px; table-layout: fixed; background: white; }
-    th, td { border: 1px solid #e0e4e8; text-align: center; height: 28px; font-size: 11px; transition: 0.1s; }
+    th, td { border: 1px solid #e0e4e8; text-align: center; height: 28px; font-size: 11px; transition: 0.1s; position: relative; }
     th { background: #f8f9fa; font-weight: 600; color: #555; }
     
+    /* 💡 선택된 날짜 하이라이트 스타일 */
+    .highlight-col { border-left: 2px dashed #e76115 !important; border-right: 2px dashed #e76115 !important; background-color: #fffaf0; }
+    th.highlight-col { border-top: 2px dashed #e76115 !important; background-color: #ffe0cc !important; }
+    tr:last-child td.highlight-col { border-bottom: 2px dashed #e76115 !important; }
+
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; }
     td:hover { background-color: #f1f3f5; cursor: pointer; }
 
     .week-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
     .week-nav h3 { margin: 0; min-width: 150px; text-align: center; font-size: 16px; }
 
-    button { cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; padding: 7px 12px; font-weight: bold; font-size: 12px; }
-    button:hover { background-color: #0056b3; }
+    button { cursor: pointer; background-color: #e76115; color: white; border: none; border-radius: 5px; padding: 7px 12px; font-weight: bold; font-size: 12px; }
+    button:hover { background-color: #c54f0e; }
     
     .btn-delete { background: #ff4d4f; padding: 2px 5px; font-size: 10px; border-radius: 3px; font-weight: normal; }
     .btn-delete:hover { background: #d32f2f; }
@@ -38,19 +43,17 @@
 <body>
 
 <div class="left">
-  <h2>📅 회의실 예약</h2>
+  <h2>🏢 아워홈 R&D 회의실 예약</h2>
   <span class="notice">※ 업무명이 아닌 예약자 성함으로 예약 바랍니다.</span>
   
   <div style="display: flex; flex-direction: column; gap: 8px;">
     <input type="date" id="date" style="width: 95%;">
-    
     <div class="time-select-group">
         <span>시작:</span>
         <select id="startTime" style="flex:1;" onchange="syncEndTime()"></select>
         <span>종료:</span>
         <select id="endTime" style="flex:1;"></select>
     </div>
-
     <div style="display: flex; gap: 4px;">
         <input type="text" id="fresh" placeholder="Fresh 예약자" style="flex: 1;">
         <input type="text" id="innovation" placeholder="Innovation 예약자" style="flex: 1;">
@@ -82,10 +85,8 @@
     <h3 id="weekLabel"></h3>
     <button onclick="nextWeek()">다음 주 ▶</button>
   </div>
-
   <h4>📍 Fresh 회의실</h4>
   <table id="freshWeekTable"></table>
-
   <h4>📍 Innovation 회의실</h4>
   <table id="innovationWeekTable"></table>
 </div>
@@ -104,7 +105,6 @@ const firebaseConfig = {
   appId: "1:443110031923:web:9e3154876e475fc9225946",
   measurementId: "G-XRQPQCVZQ1"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -140,18 +140,14 @@ document.addEventListener("DOMContentLoaded", () => {
         el.startTime.appendChild(opt);
     });
     syncEndTime();
-
     const todayStr = getLocalDateString(new Date());
     el.date.value = todayStr;
     el.dateDisplay.innerText = todayStr;
-
     el.date.onchange = () => {
-        const selectedDate = new Date(el.date.value);
         el.dateDisplay.innerText = el.date.value;
-        currentWeekStart = getStartOfWeek(selectedDate);
+        currentWeekStart = getStartOfWeek(new Date(el.date.value));
         renderAll();
     };
-
     db.ref('reservations').on('value', snapshot => {
         const data = snapshot.val();
         reservations = data ? Object.entries(data).map(([k, v]) => ({ key: k, ...v })) : [];
@@ -202,9 +198,9 @@ function renderSelectedDate() {
         tr.innerHTML = `
             <td style="background:#f9f9f9; font-weight:bold;">${t}</td>
             <td class="${freshName ? 'reserved' : ''}">${freshName}</td>
-            <td>${freshName ? `<button class="btn-delete" onclick="deleteRoomRes('${found.key}', 'fresh')">삭제</button>` : ''}</td>
+            <td>${freshName ? `<button class="btn-delete" onclick="deleteBatch('${found.key}', 'fresh')">삭제</button>` : ''}</td>
             <td class="${innovName ? 'reserved' : ''}">${innovName}</td>
-            <td>${innovName ? `<button class="btn-delete" onclick="deleteRoomRes('${found.key}', 'innovation')">삭제</button>` : ''}</td>
+            <td>${innovName ? `<button class="btn-delete" onclick="deleteBatch('${found.key}', 'innovation')">삭제</button>` : ''}</td>
         `;
         el.todayTbody.appendChild(tr);
     });
@@ -216,54 +212,56 @@ async function addReservation() {
     const endT = el.endTime.value;
     const fresh = el.fresh.value.trim();
     const innovation = el.innovation.value.trim();
-
     if (!fresh && !innovation) return alert("예약자 이름을 입력해 주세요.");
     
     const startIdx = TIME_SLOTS.indexOf(startT);
     const endIdx = TIME_SLOTS.indexOf(endT);
     const targetSlots = TIME_SLOTS.slice(startIdx, endIdx);
+    const groupId = Date.now(); // 💡 일괄 삭제를 위한 그룹 ID 생성
 
-    // 💡 중복 체크 로직 강화
     for (let t of targetSlots) {
         const existing = reservations.find(r => r.date === date && r.time === t);
         if (existing) {
-            if (fresh && existing.fresh) {
-                alert(`이미 예약된 시간대가 포함되어 있습니다. (Fresh: ${t})`);
-                return;
-            }
-            if (innovation && existing.innovation) {
-                alert(`이미 예약된 시간대가 포함되어 있습니다. (Innovation: ${t})`);
+            if ((fresh && existing.fresh) || (innovation && existing.innovation)) {
+                alert(`이미 예약된 시간대가 포함되어 있습니다. (${t})`);
                 return;
             }
         }
     }
 
-    // 중복이 없을 경우 예약 진행
     for (let t of targetSlots) {
         const existing = reservations.find(r => r.date === date && r.time === t);
         let newData = existing ? { ...existing } : { date, time: t, fresh: '', innovation: '' };
-        if (fresh) newData.fresh = fresh;
-        if (innovation) newData.innovation = innovation;
+        if (fresh) { newData.fresh = fresh; newData.freshGid = groupId; }
+        if (innovation) { newData.innovation = innovation; newData.innovGid = groupId; }
         if (existing) await db.ref('reservations/' + existing.key).remove();
         delete newData.key;
         await db.ref('reservations').push(newData);
     }
-    el.fresh.value = '';
-    el.innovation.value = '';
-    alert("예약이 성공적으로 등록되었습니다.");
+    el.fresh.value = ''; el.innovation.value = ''; alert("예약되었습니다.");
 }
 
-function deleteRoomRes(key, type) {
-    if (!confirm("해당 예약을 삭제하시겠습니까?")) return;
+// 💡 일괄 삭제 기능 구현
+async function deleteBatch(key, type) {
     const target = reservations.find(r => r.key === key);
     if (!target) return;
-    let updateData = { ...target };
-    if (type === 'fresh') updateData.fresh = '';
-    else updateData.innovation = '';
-    db.ref('reservations/' + key).remove();
-    if (updateData.fresh || updateData.innovation) {
-        delete updateData.key;
-        db.ref('reservations').push(updateData);
+    const gid = type === 'fresh' ? target.freshGid : target.innovGid;
+    
+    if (!confirm("연결된 모든 시간 예약을 일괄 삭제하시겠습니까?")) return;
+
+    // 그룹 ID가 있는 것들 모두 찾기
+    const targetsToDelete = reservations.filter(r => (type === 'fresh' ? r.freshGid : r.innovGid) === gid && (gid !== undefined));
+    
+    for (let item of targetsToDelete) {
+        let updateData = { ...item };
+        if (type === 'fresh') { updateData.fresh = ''; delete updateData.freshGid; }
+        else { updateData.innovation = ''; delete updateData.innovGid; }
+        
+        await db.ref('reservations/' + item.key).remove();
+        if (updateData.fresh || updateData.innovation) {
+            delete updateData.key;
+            await db.ref('reservations').push(updateData);
+        }
     }
 }
 
@@ -280,16 +278,25 @@ function renderWeekTable() {
         days.push(d);
     }
     el.weekLabel.innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
-    const displaySlots = TIME_SLOTS.slice(0, -1);
+    const selectedDateStr = el.date.value; // 💡 하이라이트 기준 날짜
+
     const build = (target, type) => {
-        let html = `<thead><tr><th style="width:50px;">시간</th>${days.map(d => `<th>${d.getDate()}(${weekDays[d.getDay()]})</th>`).join('')}</tr></thead><tbody>`;
-        displaySlots.forEach(t => {
+        let html = `<thead><tr><th style="width:50px;">시간</th>`;
+        days.forEach(d => {
+            const dateStr = getLocalDateString(d);
+            const isSelected = (dateStr === selectedDateStr);
+            html += `<th class="${isSelected ? 'highlight-col' : ''}">${d.getDate()}(${weekDays[d.getDay()]})</th>`;
+        });
+        html += `</tr></thead><tbody>`;
+
+        TIME_SLOTS.slice(0, -1).forEach(t => {
             html += `<tr><td style="background:#f8f9fa; font-weight:bold;">${t}</td>`;
             days.forEach(d => {
                 const dateStr = getLocalDateString(d);
+                const isSelected = (dateStr === selectedDateStr);
                 const found = reservations.find(r => r.date === dateStr && r.time === t);
                 const name = found ? (type === 'fresh' ? found.fresh : found.innovation) : '';
-                html += `<td class="${name ? 'reserved' : ''}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
+                html += `<td class="${name ? 'reserved' : ''} ${isSelected ? 'highlight-col' : ''}" onclick="clickCell('${dateStr}','${t}','${type}')">${name}</td>`;
             });
             html += `</tr>`;
         });
@@ -301,29 +308,18 @@ function renderWeekTable() {
 
 function clickCell(date, time, type) {
     const existing = reservations.find(r => r.date === date && r.time === time);
-    const typeLabel = (type === 'fresh') ? 'Fresh' : 'Innovation';
     const currentName = existing ? (type === 'fresh' ? existing.fresh : existing.innovation) : '';
-    
-    const newName = prompt(`[${date} ${time}] ${typeLabel} 예약자명`, currentName || '');
-    if (newName === null) return;
-    
-    // 💡 셀 클릭 예약 시에도 중복 체크 (기존 이름이 없을 때만)
-    if (newName.trim() !== "" && currentName === "") {
-        const already = reservations.find(r => r.date === date && r.time === time);
-        if (already && (type === 'fresh' ? already.fresh : already.innovation)) {
-            alert("이미 예약된 시간대입니다.");
-            return;
-        }
-    }
+    if (currentName) return deleteBatch(existing.key, type); // 이미 있으면 일괄 삭제 호출
+
+    const newName = prompt(`[${date} ${time}] 예약자명`, "");
+    if (!newName) return;
 
     let updateData = existing ? { ...existing } : { date, time, fresh: '', innovation: '' };
     if (type === 'fresh') updateData.fresh = newName.trim();
     else updateData.innovation = newName.trim();
     if (existing) db.ref('reservations/' + existing.key).remove();
-    if (updateData.fresh || updateData.innovation) {
-        delete updateData.key;
-        db.ref('reservations').push(updateData);
-    }
+    delete updateData.key;
+    db.ref('reservations').push(updateData);
 }
 </script>
 </body>
