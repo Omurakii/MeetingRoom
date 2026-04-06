@@ -11,11 +11,16 @@ body { font-family: Arial; padding:20px; display:flex; gap:20px; }
 .right { flex:1; }
 table { border-collapse: collapse; width:100%; margin-top:20px; }
 th, td { border:1px solid #ccc; padding:8px; text-align:center; }
-th:nth-child(2), th:nth-child(3), td:nth-child(2), td:nth-child(3) { width: 150px; }
+
+/* ✅ Fresh / Innovation 너비 동일 */
+th:nth-child(2), th:nth-child(3),
+td:nth-child(2), td:nth-child(3) {
+  width:160px;
+}
+
 th { background:#f0f0f0; }
 input, select, button { padding:6px; margin:4px; }
 .reserved { background:#ffe58a; }
-.conflict { background:#ffb3b3; }
 </style>
 </head>
 
@@ -83,6 +88,7 @@ window.onload = () => {
   document.getElementById('date').value = today;
 };
 
+// ✅ 안정적인 예약 추가 (DB 기준 중복 체크)
 function addReservation() {
   const date = document.getElementById('date').value;
   const time = document.getElementById('time').value;
@@ -91,40 +97,54 @@ function addReservation() {
 
   if(!date) return alert('날짜 선택');
 
-  // 🔥 중복 체크
-  const conflict = reservations.find(r => r.date === date && r.time === time);
+  db.ref('reservations')
+    .orderByChild('date')
+    .equalTo(date)
+    .once('value', snapshot => {
 
-  if(conflict) {
-    alert('이미 예약된 시간입니다!');
-    return;
-  }
+      const data = snapshot.val();
 
-  db.ref('reservations').push({ date, time, fresh, innovation });
+      if (data) {
+        const exists = Object.values(data).find(r => r.time === time);
+        if (exists) {
+          alert('이미 예약된 시간입니다!');
+          return;
+        }
+      }
+
+      db.ref('reservations').push({ date, time, fresh, innovation });
+    });
 }
 
+// ✅ 삭제 (문제 안 생기게 안전하게)
 function deleteReservation(key) {
-  const isConfirmed = confirm("해당 시간에 예약한 분이 맞으신가요?
-
-확인 = 삭제 / 취소 = 유지");
-
-  if (!isConfirmed) return;
+  const ok = confirm("해당 시간에 예약한 분이 맞으신가요?\n\n확인 = 삭제 / 취소 = 유지");
+  if (!ok) return;
 
   db.ref('reservations/' + key).remove();
 }
 
-// 실시간 데이터
- db.ref('reservations').on('value', snapshot => {
-  const data = snapshot.val() || {};
-  reservations = Object.entries(data).map(([key, value]) => ({ key, ...value }));
+// ✅ Firebase 실시간 (null 안전 처리)
+db.ref('reservations').on('value', snapshot => {
+  const data = snapshot.val();
+
+  if (!data) {
+    reservations = [];
+  } else {
+    reservations = Object.entries(data).map(([key, value]) => ({
+      key,
+      ...value
+    }));
+  }
+
   renderSelectedDate();
   renderWeek();
 });
 
-// 날짜 바뀌면 다시 렌더링
- document.getElementById('date').addEventListener('change', () => {
-  renderSelectedDate();
-});
+// 날짜 변경 시
+document.getElementById('date').addEventListener('change', renderSelectedDate);
 
+// 선택 날짜 렌더
 function renderSelectedDate() {
   const selectedDate = document.getElementById('date').value;
   const tbody = document.querySelector('#todayTable tbody');
@@ -149,6 +169,7 @@ function renderSelectedDate() {
   });
 }
 
+// 주간 렌더
 function renderWeek() {
   const tbody = document.querySelector('#weekTable tbody');
   tbody.innerHTML = '';
@@ -180,6 +201,3 @@ function renderWeek() {
 
 </body>
 </html>
-
-
-
