@@ -14,6 +14,7 @@ th, td { border:1px solid #ccc; padding:8px; text-align:center; }
 th { background:#f0f0f0; }
 input, select, button { padding:6px; margin:4px; }
 .reserved { background:#ffe58a; }
+.conflict { background:#ffb3b3; }
 </style>
 </head>
 
@@ -37,7 +38,7 @@ input, select, button { padding:6px; margin:4px; }
 
 <button onclick="addReservation()">예약</button>
 
-<h3>📌 오늘 예약</h3>
+<h3>📌 선택한 날짜 예약</h3>
 <table id="todayTable">
 <thead>
 <tr><th>시간</th><th>Fresh</th><th>Innovation</th><th>관리</th></tr>
@@ -56,7 +57,6 @@ input, select, button { padding:6px; margin:4px; }
 </table>
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -76,6 +76,12 @@ const db = firebase.database();
 
 let reservations = [];
 
+// 오늘 날짜 기본 세팅
+window.onload = () => {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('date').value = today;
+};
+
 function addReservation() {
   const date = document.getElementById('date').value;
   const time = document.getElementById('time').value;
@@ -84,6 +90,14 @@ function addReservation() {
 
   if(!date) return alert('날짜 선택');
 
+  // 🔥 중복 체크
+  const conflict = reservations.find(r => r.date === date && r.time === time);
+
+  if(conflict) {
+    alert('이미 예약된 시간입니다!');
+    return;
+  }
+
   db.ref('reservations').push({ date, time, fresh, innovation });
 }
 
@@ -91,16 +105,21 @@ function deleteReservation(key) {
   db.ref('reservations/' + key).remove();
 }
 
-// 실시간
+// 실시간 데이터
  db.ref('reservations').on('value', snapshot => {
   const data = snapshot.val() || {};
   reservations = Object.entries(data).map(([key, value]) => ({ key, ...value }));
-  renderToday();
+  renderSelectedDate();
   renderWeek();
 });
 
-function renderToday() {
-  const today = new Date().toISOString().slice(0,10);
+// 날짜 바뀌면 다시 렌더링
+ document.getElementById('date').addEventListener('change', () => {
+  renderSelectedDate();
+});
+
+function renderSelectedDate() {
+  const selectedDate = document.getElementById('date').value;
   const tbody = document.querySelector('#todayTable tbody');
   tbody.innerHTML = '';
 
@@ -108,7 +127,7 @@ function renderToday() {
 
   times.forEach(t => {
     const row = document.createElement('tr');
-    const found = reservations.find(r => r.date === today && r.time === t);
+    const found = reservations.find(r => r.date === selectedDate && r.time === t);
 
     if(found) row.classList.add('reserved');
 
