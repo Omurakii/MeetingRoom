@@ -7,37 +7,29 @@
     :root { --primary: #e76115; --bg: #f4f7f9; --border: #e0e4e8; }
     body { font-family: 'Malgun Gothic', sans-serif; padding:15px; display:flex; gap:15px; background-color: var(--bg); color: #333; margin: 0; height: 100vh; box-sizing: border-box; }
     
-    /* 레이아웃 */
     .left { flex: 1; min-width: 320px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
     .right { flex: 3; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; overflow: hidden; }
 
-    /* 공통 버튼 & 입력 */
     button { cursor: pointer; background-color: var(--primary); color: white; border: none; border-radius: 5px; padding: 8px 12px; font-weight: bold; transition: 0.2s; }
     button:hover { opacity: 0.8; }
     input, select { padding: 8px; border: 1px solid #ced4da; border-radius: 5px; font-size: 12px; }
 
-    /* 상단 회의실 선택기 */
     .room-selector { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; background: #f0f0f0; padding: 8px; border-radius: 8px; }
     .room-selector span { font-size: 16px; font-weight: bold; color: var(--primary); min-width: 100px; text-align: center; }
 
-    /* 뷰 전환 탭 */
     .view-tabs { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px; }
     .view-tabs button { background: #ddd; color: #333; font-size: 12px; }
     .view-tabs button.active { background: var(--primary); color: white; }
 
-    /* 테이블 공통 */
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 10px 0; }
     
-    /* 💡 주간 캘린더 행 높이 복구 */
     #weekTable td { height: 40px; } 
-    
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     .highlight-col { background-color: #fffaf0; border-left: 2px dashed var(--primary); border-right: 2px dashed var(--primary); }
     .today-marker { color: var(--primary); font-weight: bold; }
 
-    /* 월간 캘린더 전용 */
     .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border); border-left: 1px solid var(--border); flex: 1; overflow-y: auto; }
     .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; }
     .month-day:hover { background: #f9f9f9; }
@@ -47,7 +39,6 @@
     .month-res-list { flex: 1; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 2px; }
     .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); margin-bottom: 1px; }
 
-    /* 스크롤 영역 */
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
     .btn-today { background-color: #555 !important; }
 </style>
@@ -141,7 +132,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const todayStr = getDS(new Date());
     document.getElementById('resDate').value = todayStr;
     document.getElementById('resDate').onchange = (e) => {
-        currentBaseDate = new Date(e.target.value);
+        // 💡 날짜 문자열로부터 로컬 기준 Date 객체 생성
+        const parts = e.target.value.split('-');
+        currentBaseDate = new Date(parts[0], parts[1]-1, parts[2]);
         render();
     };
 
@@ -187,14 +180,18 @@ function renderToday(room) {
 function renderWeek(room) {
     const start = getStartOfWeek(currentBaseDate);
     const days = [];
-    for(let i=0; i<7; i++) { const d = new Date(start); d.setDate(d.getDate()+i); days.push(d); }
+    for(let i=0; i<7; i++) { 
+        const d = new Date(start); 
+        d.setDate(start.getDate() + i); 
+        days.push(d); 
+    }
     
     document.getElementById('currentViewRange').innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
     
     let html = `<thead><tr><th style="width:60px;">시간</th>`;
     days.forEach(d => {
         const dStr = getDS(d);
-        const isToday = dStr === getDS(new Date());
+        const isToday = dStr === getDS(new Date()); // 💡 정확한 로컬 기준 오늘 비교
         const isSelected = dStr === document.getElementById('resDate').value;
         html += `<th class="${isSelected?'highlight-col':''} ${isToday?'today-marker':''}">
                     ${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday?'<br>(오늘)':''}
@@ -239,7 +236,7 @@ function renderMonth(room) {
         dayDiv.className = `month-day ${isOtherMonth?'other-month':''} ${isToday?'is-today':''}`;
         dayDiv.onclick = () => { 
             document.getElementById('resDate').value = dStr; 
-            currentBaseDate = new Date(dStr);
+            currentBaseDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
             render(); 
         };
 
@@ -290,6 +287,8 @@ function quickRes(d, t) {
     document.getElementById('resDate').value = d; 
     document.getElementById('startT').value = t; 
     syncEndTime(); 
+    const parts = d.split('-');
+    currentBaseDate = new Date(parts[0], parts[1]-1, parts[2]);
     render(); 
 }
 
@@ -306,18 +305,30 @@ function changeDate(n) {
     else currentBaseDate.setMonth(currentBaseDate.getMonth() + n);
     render(); 
 }
+
 function goToday() { 
-    currentBaseDate = new Date(); 
-    document.getElementById('resDate').value = getDS(currentBaseDate); 
+    const today = new Date();
+    currentBaseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
+    document.getElementById('resDate').value = getDS(today); 
     render(); 
 }
-function getDS(d) { return d.toISOString().split('T')[0]; }
+
+// 💡 날짜를 'YYYY-MM-DD' 형식의 로컬 문자열로 반환
+function getDS(d) { 
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
+}
+
+// 💡 월요일 시작 기준으로 주간 시작일 계산 수정
 function getStartOfWeek(d) { 
-    const dd = new Date(d); 
+    const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()); 
     const day = dd.getDay(); 
-    const diff = dd.getDate() - day + (day===0?-6:1); 
+    const diff = dd.getDate() - day + (day === 0 ? -6 : 1); 
     return new Date(dd.setDate(diff)); 
 }
+
 async function autoCleanup() {
     const limit = getDS(new Date(Date.now() - 30*24*60*60*1000));
     const oldOnes = reservations.filter(r => r.date < limit);
