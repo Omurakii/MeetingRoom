@@ -2,60 +2,58 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>아워홈 R&D 회의실 통합 예약 시스템</title>
+<title>아워홈 R&D 회의실 예약 시스템</title>
 <style>
     :root { --primary: #e76115; --bg: #f4f7f9; --border: #e0e4e8; }
     body { font-family: 'Malgun Gothic', sans-serif; padding:15px; display:flex; gap:15px; background-color: var(--bg); color: #333; margin: 0; height: 100vh; box-sizing: border-box; }
     
-    /* 레이아웃 */
     .left { flex: 1; min-width: 320px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
     .right { flex: 3; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; overflow: hidden; }
 
-    /* 공통 버튼 & 입력 */
     button { cursor: pointer; background-color: var(--primary); color: white; border: none; border-radius: 5px; padding: 8px 12px; font-weight: bold; transition: 0.2s; }
     button:hover { opacity: 0.8; }
     input, select { padding: 8px; border: 1px solid #ced4da; border-radius: 5px; font-size: 12px; }
 
-    /* 상단 회의실 선택기 */
     .room-selector { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; background: #f0f0f0; padding: 8px; border-radius: 8px; }
     .room-selector span { font-size: 16px; font-weight: bold; color: var(--primary); min-width: 100px; text-align: center; }
 
-    /* 뷰 전환 탭 */
     .view-tabs { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px; }
     .view-tabs button { background: #ddd; color: #333; font-size: 12px; }
     .view-tabs button.active { background: var(--primary); color: white; }
 
-    /* 테이블 공통 */
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 10px 0; }
     
+    /* 주간 캘린더 스타일 */
     #weekTable td { height: 40px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     
-    /* 💡 강조 스타일: 시간별 칸에서 테두리를 빼고 열 단위로 보이게 수정 */
     .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
     th.highlight-col { border-top: 2px dashed var(--primary) !important; }
-    /* 마지막 행 처리용 (JS에서 마지막 tr에 클래스 추가 예정) */
     .last-row-highlight { border-bottom: 2px dashed var(--primary) !important; }
-
     .today-marker { color: var(--primary); font-weight: bold; }
 
-    /* 월간 캘린더 전용 */
-    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
-    .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 0; text-align: center; font-size: 11px; font-weight: bold; }
-    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-left: 1px solid var(--border); flex: 1; overflow-y: auto; }
+    /* 월간 캘린더 레이아웃 수정 */
+    #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+    
+    /* 💡 열 간격을 맞추기 위해 그리드 설정 통일 */
+    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa; }
+    .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 10px 0; text-align: center; font-size: 11px; font-weight: bold; }
+    
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: scroll; /* 💡 스크롤바 영역 상시 확보로 간격 유지 */ }
     .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; box-sizing: border-box; }
     .month-day:hover { background: #f9f9f9; }
     .month-day.other-month { background: #fcfcfc; color: #ccc; }
     .month-day.is-today { background: #fff0e6; }
+    
     .day-num { font-weight: bold; margin-bottom: 5px; display: block; }
     .month-res-list { flex: 1; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 2px; }
     .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); margin-bottom: 1px; }
 
-    .month-day.highlight-col { border: 2px dashed var(--primary) !important; }
+    /* 월간 선택 날짜 강조 */
+    .month-day.highlight-col { border: 2px dashed var(--primary) !important; position: relative; z-index: 10; }
 
-    /* 스크롤 영역 */
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
     .btn-today { background-color: #555 !important; }
 </style>
@@ -110,9 +108,10 @@
       <table id="weekTable"></table>
   </div>
 
-  <div id="monthContainer" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+  <div id="monthContainer">
       <div class="month-header">
           <div style="color:red;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:blue;">토</div>
+          <div style="width:17px; border:none; background:white; flex:none;" id="scrollSpacer"></div>
       </div>
       <div id="monthView" class="month-grid"></div>
   </div>
@@ -122,6 +121,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
+// Firebase 및 기본 설정은 이전과 동일
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
@@ -271,41 +271,32 @@ function renderMonth(room) {
     }
 }
 
+// 나머지 헬퍼 함수 (addRes, delRes, quickRes 등)는 이전 코드와 동일
 async function addRes() {
     const date = document.getElementById('resDate').value;
     if(date < getDS(new Date())) return alert("오늘보다 이전 날짜입니다.");
     const name = document.getElementById('resName').value.trim();
     const pw = document.getElementById('resPw').value.trim();
     if(!name || pw.length<4) return alert("성함과 비번 4자리를 입력하세요.");
-
     const startIdx = SLOTS.indexOf(document.getElementById('startT').value);
     const endIdx = SLOTS.indexOf(document.getElementById('endT').value);
     const targetSlots = SLOTS.slice(startIdx, endIdx);
     const gid = Date.now();
     const room = ROOMS[roomIdx];
-
-    for(let t of targetSlots) {
-        if(reservations.find(r => r.date === date && r.time === t && r.room === room)) return alert("이미 중복된 예약이 있습니다.");
-    }
-    for(let t of targetSlots) {
-        await db.ref('reservations').push({ room, date, time: t, name, pw, gid });
-    }
+    for(let t of targetSlots) { if(reservations.find(r => r.date === date && r.time === t && r.room === room)) return alert("이미 중복된 예약이 있습니다."); }
+    for(let t of targetSlots) { await db.ref('reservations').push({ room, date, time: t, name, pw, gid }); }
     document.getElementById('resName').value=''; document.getElementById('resPw').value=''; alert("예약 완료");
 }
-
 async function delRes(key) {
     const target = reservations.find(r => r.key === key);
     if(!target) return;
     const pw = prompt("비밀번호 4자리를 입력하세요.");
     if(pw !== target.pw) return alert("비밀번호가 일치하지 않습니다.");
-
     const related = reservations.filter(r => r.gid === target.gid && r.room === target.room);
-    if(!confirm(related.length>1 ? "연결된 전체 예약을 삭제하시겠습니까?" : "삭제하시겠습니까?")) return;
-
+    if(!confirm("삭제하시겠습니까?")) return;
     for(let item of related) await db.ref('reservations/' + item.key).remove();
     alert("삭제되었습니다.");
 }
-
 function quickRes(d, t) { 
     document.getElementById('resDate').value = d; 
     document.getElementById('startT').value = t; 
@@ -314,42 +305,36 @@ function quickRes(d, t) {
     currentBaseDate = new Date(parts[0], parts[1]-1, parts[2]);
     render(); 
 }
-
 function syncEndTime() {
     const sIdx = SLOTS.indexOf(document.getElementById('startT').value);
     const endSel = document.getElementById('endT');
     endSel.innerHTML = '';
     SLOTS.slice(sIdx+1).forEach(t => { let opt = document.createElement('option'); opt.value=t; opt.innerText=t; endSel.appendChild(opt); });
 }
-
 function changeRoom(n) { roomIdx = (roomIdx+n+ROOMS.length)%ROOMS.length; render(); }
 function changeDate(n) { 
     if(viewMode === 'week') currentBaseDate.setDate(currentBaseDate.getDate() + (n * 7));
     else currentBaseDate.setMonth(currentBaseDate.getMonth() + n);
     render(); 
 }
-
 function goToday() { 
     const today = new Date();
     currentBaseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
     document.getElementById('resDate').value = getDS(today); 
     render(); 
 }
-
 function getDS(d) { 
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const date = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${date}`;
 }
-
 function getStartOfWeek(d) { 
     const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()); 
     const day = dd.getDay(); 
     const diff = dd.getDate() - day + (day === 0 ? -6 : 1); 
     return new Date(dd.getFullYear(), dd.getMonth(), diff); 
 }
-
 async function autoCleanup() {
     const limit = getDS(new Date(Date.now() - 30*24*60*60*1000));
     const oldOnes = reservations.filter(r => r.date < limit);
