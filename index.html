@@ -30,11 +30,15 @@
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 10px 0; }
     
-    #weekTable td { height: 40px; } 
+    #weekTable td { height: 40px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     
-    /* 💡 강조 스타일 */
-    .highlight-col { background-color: #fffaf0 !important; border: 2px dashed var(--primary) !important; }
+    /* 💡 강조 스타일: 시간별 칸에서 테두리를 빼고 열 단위로 보이게 수정 */
+    .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
+    th.highlight-col { border-top: 2px dashed var(--primary) !important; }
+    /* 마지막 행 처리용 (JS에서 마지막 tr에 클래스 추가 예정) */
+    .last-row-highlight { border-bottom: 2px dashed var(--primary) !important; }
+
     .today-marker { color: var(--primary); font-weight: bold; }
 
     /* 월간 캘린더 전용 */
@@ -48,6 +52,8 @@
     .day-num { font-weight: bold; margin-bottom: 5px; display: block; }
     .month-res-list { flex: 1; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 2px; }
     .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); margin-bottom: 1px; }
+
+    .month-day.highlight-col { border: 2px dashed var(--primary) !important; }
 
     /* 스크롤 영역 */
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
@@ -213,13 +219,15 @@ function renderWeek(room) {
     });
     html += `</tr></thead><tbody>`;
 
-    SLOTS.slice(0, -1).forEach(t => {
+    const totalSlots = SLOTS.slice(0, -1);
+    totalSlots.forEach((t, idx) => {
+        const isLast = idx === totalSlots.length - 1;
         html += `<tr><td style="background:#f8f9fa; font-weight:bold;">${t}</td>`;
         days.forEach(d => {
             const dStr = getDS(d);
             const isSelected = dStr === document.getElementById('resDate').value;
             const found = reservations.find(r => r.date === dStr && r.time === t && r.room === room);
-            html += `<td class="${found?'reserved':''} ${isSelected?'highlight-col':''}" 
+            html += `<td class="${found?'reserved':''} ${isSelected?'highlight-col':''} ${isSelected && isLast?'last-row-highlight':''}" 
                          onclick="${found?`delRes('${found.key}')`:`quickRes('${dStr}','${t}')`}">
                          ${found?found.name:''}
                      </td>`;
