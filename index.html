@@ -17,7 +17,6 @@
     .room-selector { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; background: #f0f0f0; padding: 8px; border-radius: 8px; }
     .room-selector span { font-size: 16px; font-weight: bold; color: var(--primary); min-width: 100px; text-align: center; }
 
-    /* 안내 문구 스타일 */
     .notice-top { font-size: 11px; color: #666; margin: -5px 0 15px; text-align: center; line-height: 1.5; background: #fff5f0; padding: 5px; border-radius: 4px; }
 
     .view-tabs { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px; }
@@ -26,9 +25,10 @@
 
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
-    th { background: #f8f9fa; padding: 10px 0; }
+    th { background: #f8f9fa; padding: 8px 0; }
     
-    #todayTable td { padding: 12px 5px; } 
+    /* 💡 왼쪽 오늘의 현황 표 행 간격 축소 */
+    #todayTable td { padding: 8px 5px; } 
 
     /* 주간 캘린더 */
     #weekTable td { height: 45px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
@@ -37,22 +37,34 @@
     th.highlight-col { border-top: 2px dashed var(--primary) !important; }
     .last-row-highlight { border-bottom: 2px dashed var(--primary) !important; }
 
-    /* 월간 캘린더 정렬 교정 */
+    /* 💡 월간 캘린더: 헤더 정렬 완전 교정 */
     #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+    
+    .month-header-wrapper { 
+        display: flex; 
+        background: #f8f9fa; 
+        width: 100%; 
+        box-sizing: border-box;
+    }
     .month-header { 
         display: grid; 
         grid-template-columns: repeat(7, 1fr); 
-        width: 100%;
-        scrollbar-gutter: stable; 
-        background: #f8f9fa;
-        box-sizing: border-box;
+        flex: 1;
     }
     .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 12px 0; text-align: center; font-size: 11px; font-weight: bold; }
+    
+    /* 💡 스크롤바와 똑같은 너비의 투명 박스 강제 생성 */
+    .header-spacer { 
+        width: 17px; 
+        border-bottom: 1px solid var(--border); 
+        background: #f8f9fa; 
+    }
+
     .month-grid { 
         display: grid; 
         grid-template-columns: repeat(7, 1fr); 
         flex: 1; 
-        overflow-y: scroll; 
+        overflow-y: scroll; /* 항상 스크롤바 유지 */
         width: 100%; 
         box-sizing: border-box; 
     }
@@ -117,9 +129,11 @@
   </div>
 
   <div id="monthContainer">
-      <div class="month-header">
-          <div style="color:red;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:blue;">토</div>
-      </div>
+      <div class="month-header-wrapper">
+          <div class="month-header">
+              <div style="color:red;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:blue;">토</div>
+          </div>
+          <div class="header-spacer"></div> </div>
       <div id="monthView" class="month-grid"></div>
   </div>
 </div>
@@ -128,7 +142,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// Firebase 및 로직 (기존과 동일)
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
