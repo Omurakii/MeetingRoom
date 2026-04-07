@@ -25,34 +25,45 @@
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 10px 0; }
     
-    /* 💡 오늘의 현황 표 행 높이 조절 */
-    #todayTable td { padding: 10px 5px; } 
+    /* 오늘의 현황: 넉넉한 행 높이 */
+    #todayTable td { padding: 12px 5px; } 
     #todayTable th { padding: 12px 0; }
 
-    /* 주간 캘린더 설정 */
-    #weekTable td { height: 40px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
+    /* 주간 캘린더 */
+    #weekTable td { height: 45px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
     th.highlight-col { border-top: 2px dashed var(--primary) !important; }
     .last-row-highlight { border-bottom: 2px dashed var(--primary) !important; }
 
-    /* 월간 캘린더 설정 */
+    /* 월간 캘린더: 열 간격 완벽 교정 핵심 */
     #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
-    .month-header, .month-grid { 
+    
+    .month-header { 
         display: grid; 
         grid-template-columns: repeat(7, 1fr); 
+        background: #f8f9fa; 
         width: 100%;
-        scrollbar-gutter: stable; 
+        /* 💡 본문 스크롤바 너비를 고려한 투명 간격 추가 (약 15px~17px) */
+        padding-right: 17px; 
+        box-sizing: border-box;
     }
-    .month-header { background: #f8f9fa; }
-    .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 10px 0; text-align: center; font-size: 11px; font-weight: bold; }
-    .month-grid { flex: 1; overflow-y: auto; }
-    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; box-sizing: border-box; }
+    .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 12px 0; text-align: center; font-size: 11px; font-weight: bold; }
+    
+    .month-grid { 
+        display: grid; 
+        grid-template-columns: repeat(7, 1fr); 
+        flex: 1; 
+        overflow-y: scroll; /* 💡 항상 스크롤바 공간을 확보하여 레이아웃 고정 */
+        width: 100%; 
+        box-sizing: border-box; 
+    }
+    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 6px; background: white; display: flex; flex-direction: column; cursor: pointer; box-sizing: border-box; }
     .month-day.highlight-col { border: 2px dashed var(--primary) !important; z-index: 1; }
-    .day-num { font-weight: bold; margin-bottom: 5px; display: block; }
-    .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; font-size: 10px; border-left: 3px solid var(--primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .day-num { font-weight: bold; margin-bottom: 6px; display: block; }
+    .res-item { background: #ffeeba; padding: 3px 5px; border-radius: 3px; font-size: 10px; border-left: 3px solid var(--primary); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .notice { font-size: 11px; color: #888; margin-top: 8px; text-align: center; line-height: 1.4; }
+    .notice { font-size: 11px; color: #888; margin-top: 10px; text-align: center; line-height: 1.5; }
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
 </style>
 </head>
@@ -119,6 +130,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
+// Firebase 및 기본 로직 (동일하게 유지)
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
