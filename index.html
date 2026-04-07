@@ -7,31 +7,41 @@
     :root { --primary: #e76115; --bg: #f4f7f9; --border: #e0e4e8; }
     body { font-family: 'Malgun Gothic', sans-serif; padding:15px; display:flex; gap:15px; background-color: var(--bg); color: #333; margin: 0; height: 100vh; box-sizing: border-box; }
     
+    /* 레이아웃 */
     .left { flex: 1; min-width: 320px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
     .right { flex: 3; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; overflow: hidden; }
 
+    /* 공통 버튼 & 입력 */
     button { cursor: pointer; background-color: var(--primary); color: white; border: none; border-radius: 5px; padding: 8px 12px; font-weight: bold; transition: 0.2s; }
     button:hover { opacity: 0.8; }
     input, select { padding: 8px; border: 1px solid #ced4da; border-radius: 5px; font-size: 12px; }
 
+    /* 상단 회의실 선택기 */
     .room-selector { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; background: #f0f0f0; padding: 8px; border-radius: 8px; }
     .room-selector span { font-size: 16px; font-weight: bold; color: var(--primary); min-width: 100px; text-align: center; }
 
+    /* 뷰 전환 탭 */
     .view-tabs { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px; }
     .view-tabs button { background: #ddd; color: #333; font-size: 12px; }
     .view-tabs button.active { background: var(--primary); color: white; }
 
+    /* 테이블 공통 */
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 10px 0; }
     
     #weekTable td { height: 40px; } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
-    .highlight-col { background-color: #fffaf0; border-left: 2px dashed var(--primary); border-right: 2px dashed var(--primary); }
+    
+    /* 💡 강조 스타일 */
+    .highlight-col { background-color: #fffaf0 !important; border: 2px dashed var(--primary) !important; }
     .today-marker { color: var(--primary); font-weight: bold; }
 
-    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border); border-left: 1px solid var(--border); flex: 1; overflow-y: auto; }
-    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; }
+    /* 월간 캘린더 전용 */
+    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+    .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 0; text-align: center; font-size: 11px; font-weight: bold; }
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-left: 1px solid var(--border); flex: 1; overflow-y: auto; }
+    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; box-sizing: border-box; }
     .month-day:hover { background: #f9f9f9; }
     .month-day.other-month { background: #fcfcfc; color: #ccc; }
     .month-day.is-today { background: #fff0e6; }
@@ -39,6 +49,7 @@
     .month-res-list { flex: 1; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 2px; }
     .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); margin-bottom: 1px; }
 
+    /* 스크롤 영역 */
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
     .btn-today { background-color: #555 !important; }
 </style>
@@ -93,7 +104,12 @@
       <table id="weekTable"></table>
   </div>
 
-  <div id="monthView" class="month-grid" style="display:none;"></div>
+  <div id="monthContainer" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="month-header">
+          <div style="color:red;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:blue;">토</div>
+      </div>
+      <div id="monthView" class="month-grid"></div>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -132,7 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const todayStr = getDS(new Date());
     document.getElementById('resDate').value = todayStr;
     document.getElementById('resDate').onchange = (e) => {
-        // 💡 날짜 문자열로부터 로컬 기준 Date 객체 생성
         const parts = e.target.value.split('-');
         currentBaseDate = new Date(parts[0], parts[1]-1, parts[2]);
         render();
@@ -151,7 +166,7 @@ function setView(mode) {
     document.getElementById('btnWeek').classList.toggle('active', mode==='week');
     document.getElementById('btnMonth').classList.toggle('active', mode==='month');
     document.getElementById('weekView').style.display = mode==='week' ? 'block' : 'none';
-    document.getElementById('monthView').style.display = mode==='month' ? 'grid' : 'none';
+    document.getElementById('monthContainer').style.display = mode==='month' ? 'flex' : 'none';
     render();
 }
 
@@ -181,8 +196,7 @@ function renderWeek(room) {
     const start = getStartOfWeek(currentBaseDate);
     const days = [];
     for(let i=0; i<7; i++) { 
-        const d = new Date(start); 
-        d.setDate(start.getDate() + i); 
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i); 
         days.push(d); 
     }
     
@@ -191,7 +205,7 @@ function renderWeek(room) {
     let html = `<thead><tr><th style="width:60px;">시간</th>`;
     days.forEach(d => {
         const dStr = getDS(d);
-        const isToday = dStr === getDS(new Date()); // 💡 정확한 로컬 기준 오늘 비교
+        const isToday = dStr === getDS(new Date());
         const isSelected = dStr === document.getElementById('resDate').value;
         html += `<th class="${isSelected?'highlight-col':''} ${isToday?'today-marker':''}">
                     ${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday?'<br>(오늘)':''}
@@ -220,20 +234,21 @@ function renderMonth(room) {
     container.innerHTML = '';
     const y = currentBaseDate.getFullYear();
     const m = currentBaseDate.getMonth();
+    const selDate = document.getElementById('resDate').value;
     document.getElementById('currentViewRange').innerText = `${y}년 ${m+1}월`;
 
     const firstDay = new Date(y, m, 1);
-    const startDay = new Date(firstDay);
-    startDay.setDate(firstDay.getDate() - firstDay.getDay()); 
+    const startDay = new Date(y, m, 1 - firstDay.getDay()); 
 
     for(let i=0; i<42; i++) {
-        const d = new Date(startDay); d.setDate(startDay.getDate() + i);
+        const d = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + i);
         const dStr = getDS(d);
         const isToday = dStr === getDS(new Date());
+        const isSelected = dStr === selDate;
         const isOtherMonth = d.getMonth() !== m;
 
         const dayDiv = document.createElement('div');
-        dayDiv.className = `month-day ${isOtherMonth?'other-month':''} ${isToday?'is-today':''}`;
+        dayDiv.className = `month-day ${isOtherMonth?'other-month':''} ${isToday?'is-today':''} ${isSelected?'highlight-col':''}`;
         dayDiv.onclick = () => { 
             document.getElementById('resDate').value = dStr; 
             currentBaseDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -243,7 +258,7 @@ function renderMonth(room) {
         const dayRes = reservations.filter(r => r.date === dStr && r.room === room).sort((a,b)=>a.time.localeCompare(b.time));
         let resHtml = dayRes.map(r => `<div class="res-item" onclick="event.stopPropagation(); delRes('${r.key}')">${r.time} ${r.name}</div>`).join('');
         
-        dayDiv.innerHTML = `<span class="day-num">${d.getDate()}</span><div class="month-res-list">${resHtml}</div>`;
+        dayDiv.innerHTML = `<span class="day-num" style="${d.getDay()===0?'color:red;':d.getDay()===6?'color:blue;':''}">${d.getDate()}</span><div class="month-res-list">${resHtml}</div>`;
         container.appendChild(dayDiv);
     }
 }
@@ -313,7 +328,6 @@ function goToday() {
     render(); 
 }
 
-// 💡 날짜를 'YYYY-MM-DD' 형식의 로컬 문자열로 반환
 function getDS(d) { 
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -321,12 +335,11 @@ function getDS(d) {
     return `${year}-${month}-${date}`;
 }
 
-// 💡 월요일 시작 기준으로 주간 시작일 계산 수정
 function getStartOfWeek(d) { 
     const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate()); 
     const day = dd.getDay(); 
     const diff = dd.getDate() - day + (day === 0 ? -6 : 1); 
-    return new Date(dd.setDate(diff)); 
+    return new Date(dd.getFullYear(), dd.getMonth(), diff); 
 }
 
 async function autoCleanup() {
