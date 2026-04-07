@@ -25,34 +25,29 @@
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 10px 0; }
     
-    /* 주간 캘린더 스타일 */
+    /* 주간 캘린더: 선택된 열 강조 */
     #weekTable td { height: 40px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
-    
     .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
     th.highlight-col { border-top: 2px dashed var(--primary) !important; }
     .last-row-highlight { border-bottom: 2px dashed var(--primary) !important; }
     .today-marker { color: var(--primary); font-weight: bold; }
 
-    /* 월간 캘린더 레이아웃 수정 */
+    /* 월간 캘린더 개선 레이아웃 */
     #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
-    
-    /* 💡 열 간격을 맞추기 위해 그리드 설정 통일 */
-    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa; }
+    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa; width: 100%; box-sizing: border-box; }
     .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 10px 0; text-align: center; font-size: 11px; font-weight: bold; }
     
-    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: scroll; /* 💡 스크롤바 영역 상시 확보로 간격 유지 */ }
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: auto; width: 100%; box-sizing: border-box; }
     .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 5px; background: white; display: flex; flex-direction: column; cursor: pointer; box-sizing: border-box; }
     .month-day:hover { background: #f9f9f9; }
     .month-day.other-month { background: #fcfcfc; color: #ccc; }
     .month-day.is-today { background: #fff0e6; }
+    .month-day.highlight-col { border: 2px dashed var(--primary) !important; position: relative; }
     
     .day-num { font-weight: bold; margin-bottom: 5px; display: block; }
     .month-res-list { flex: 1; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 2px; }
     .res-item { background: #ffeeba; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--primary); margin-bottom: 1px; }
-
-    /* 월간 선택 날짜 강조 */
-    .month-day.highlight-col { border: 2px dashed var(--primary) !important; position: relative; z-index: 10; }
 
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
     .btn-today { background-color: #555 !important; }
@@ -111,7 +106,6 @@
   <div id="monthContainer">
       <div class="month-header">
           <div style="color:red;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:blue;">토</div>
-          <div style="width:17px; border:none; background:white; flex:none;" id="scrollSpacer"></div>
       </div>
       <div id="monthView" class="month-grid"></div>
   </div>
@@ -121,7 +115,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// Firebase 및 기본 설정은 이전과 동일
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
@@ -205,7 +198,6 @@ function renderWeek(room) {
         const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i); 
         days.push(d); 
     }
-    
     document.getElementById('currentViewRange').innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
     
     let html = `<thead><tr><th style="width:60px;">시간</th>`;
@@ -271,7 +263,6 @@ function renderMonth(room) {
     }
 }
 
-// 나머지 헬퍼 함수 (addRes, delRes, quickRes 등)는 이전 코드와 동일
 async function addRes() {
     const date = document.getElementById('resDate').value;
     if(date < getDS(new Date())) return alert("오늘보다 이전 날짜입니다.");
