@@ -313,11 +313,32 @@ function renderMonth(room) {
 async function delRes(key) {
     const target = reservations.find(r => r.key === key);
     if(!target) return;
-    const pw = prompt("비밀번호 4자리를 입력하세요.");
-    if(pw !== target.pw) return alert("비밀번호가 일치하지 않습니다.");
-    const related = reservations.filter(r => r.gid === target.gid && r.room === target.room);
-    if(!confirm("예약을 삭제하시겠습니까?")) return;
-    for(let item of related) await db.ref('reservations/' + item.key).remove();
+
+    const pw = prompt("비밀번호를 입력하세요.");
+    if(!pw) return; // 취소 버튼을 눌렀을 때 대비
+
+    // 관리자 마스터 비밀번호 설정
+    const adminMasterPw = "rlghlrxla123@@";
+
+    // 사용자가 입력한 비번이 원래 비번과 같거나, 관리자 비번과 같을 때만 통과
+    if (pw === target.pw || pw === adminMasterPw) {
+        const related = reservations.filter(r => r.gid === target.gid && r.room === target.room);
+        
+        const confirmMsg = pw === adminMasterPw 
+            ? "[관리자 권한] 해당 그룹의 모든 예약을 삭제하시겠습니까?" 
+            : "예약을 삭제하시겠습니까?";
+
+        if(!confirm(confirmMsg)) return;
+
+        // 관련 예약 모두 삭제
+        for(let item of related) {
+            await db.ref('reservations/' + item.key).remove();
+        }
+        
+        alert("삭제가 완료되었습니다.");
+    } else {
+        alert("비밀번호가 일치하지 않습니다.");
+    }
 }
 
 function syncFromInput() { currentBaseDate = new Date(document.getElementById('resDate').value); render(); }
