@@ -192,6 +192,13 @@ async function addRes() {
     if (date < todayStr) return alert("오늘 이전의 날짜에는 예약할 수 없습니다.");
 
     const name = document.getElementById('resName').value.trim();
+
+    if (name === "이예슬") {
+        alert("회의실 예약은 무슨 ㅋㅋ 적당히 술드시죠."); 
+    }
+    if (name === "고주현") {
+        alert("회의실 예약은 무슨 ㅋㅋ 퇴근하자."); 
+    }
     const pw = document.getElementById('resPw').value.trim();
     if(!name || pw.length<4) return alert("성함과 비번 4자리를 입력하세요.");
     
