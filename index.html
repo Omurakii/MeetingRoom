@@ -4,36 +4,63 @@
 <meta charset="UTF-8">
 <title>아워홈 R&D 회의실 예약 시스템</title>
 <style>
-    /* CSS 스타일은 이전과 동일 (생략 방지를 위해 핵심만 유지) */
     :root { --primary: #e76115; --bg: #f4f7f9; --border: #e0e4e8; }
     body { font-family: 'Malgun Gothic', sans-serif; padding:15px; display:flex; gap:15px; background-color: var(--bg); color: #333; margin: 0; height: 100vh; box-sizing: border-box; }
+    
     .left { flex: 1; min-width: 320px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
     .right { flex: 3; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; overflow: hidden; }
+
     button { cursor: pointer; background-color: var(--primary); color: white; border: none; border-radius: 5px; padding: 8px 12px; font-weight: bold; transition: 0.2s; }
     button:hover { opacity: 0.8; }
     input, select { padding: 8px; border: 1px solid #ced4da; border-radius: 5px; font-size: 12px; }
+
     .room-selector { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; background: #f0f0f0; padding: 8px; border-radius: 8px; }
     .room-selector span { font-size: 16px; font-weight: bold; color: var(--primary); min-width: 100px; text-align: center; }
+
     .notice-top { font-size: 11px; color: #666; margin: -5px 0 15px; text-align: center; line-height: 1.5; background: #fff5f0; padding: 5px; border-radius: 4px; }
+
     .view-tabs { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px; }
     .view-tabs button { background: #ddd; color: #333; font-size: 12px; }
     .view-tabs button.active { background: var(--primary); color: white; }
+
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
-    th { background: #f8f9fa; padding: 6px 0; }
-    #weekTable td { height: 25px; } 
+    th { background: #f8f9fa; padding: 10px 0; }
+    
+    #weekTable td { height: 28px; } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
     th.highlight-col { border-top: 2px dashed var(--primary) !important; color: var(--primary); }
-    #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+
+    /* 📅 월간 캘린더 레이아웃 수정 */
+    #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border: 1px solid var(--border); background: var(--border); gap: 1px; }
     .month-header-wrapper { display: flex; background: #f8f9fa; width: 100%; }
-    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; }
-    .month-header div { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 10px 0; text-align: center; font-size: 11px; font-weight: bold; }
-    .header-spacer { width: 16.5px; border: none!important; background: white; }
-    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: scroll; }
-    .month-day { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 110px; padding: 6px; background: white; display: flex; flex-direction: column; cursor: pointer; }
+    .month-header { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; background: #f8f9fa; }
+    .month-header div { border-right: 1px solid var(--border); padding: 12px 0; text-align: center; font-size: 12px; font-weight: bold; background: #f8f9fa; }
+    .header-spacer { width: 16.5px; background: #f8f9fa; border-left: 1px solid var(--border); }
+
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: scroll; background: var(--border); gap: 1px; }
+    .month-day { 
+        background: white; 
+        min-height: 110px; 
+        padding: 8px; 
+        display: flex; 
+        flex-direction: column; 
+        cursor: pointer; 
+        box-sizing: border-box;
+        border: 1px solid transparent; /* 기본 상태 */
+    }
+    /* 선택된 날짜 강조 (사방 테두리) */
+    .month-day.highlight-col { 
+        border: 2px dashed var(--primary) !important; 
+        background-color: #fffaf0;
+        z-index: 2;
+    }
+    .day-num { font-weight: bold; margin-bottom: 8px; font-size: 13px; }
     .res-item { background: #ffeeba; padding: 2px 5px; border-radius: 3px; font-size: 10px; border-left: 3px solid var(--primary); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
+    .other-month { background: #fafafa; color: #ccc; }
 </style>
 </head>
 <body>
@@ -121,8 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     syncEndTime();
     goToday(); 
-    
-    // 💡 기능 1: 30일 이전 데이터 자동 삭제 실행
     cleanupOldData();
 
     db.ref('reservations').on('value', snap => {
@@ -132,12 +157,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// 💡 30일 이전 데이터 삭제 로직
+// 💡 날짜 로컬 변환 함수 (하루 밀림 방지 핵심)
+function getDS(d) {
+    const date = new Date(d);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 async function cleanupOldData() {
     const today = new Date();
     const limitDate = new Date(today.setDate(today.getDate() - 30));
-    const limitStr = limitDate.toISOString().split('T')[0];
-
+    const limitStr = getDS(limitDate);
     const snap = await db.ref('reservations').once('value');
     const data = snap.val();
     if (data) {
@@ -150,11 +182,7 @@ async function cleanupOldData() {
 async function addRes() {
     const date = document.getElementById('resDate').value;
     const todayStr = getDS(new Date());
-
-    // 💡 기능 2: 과거 날짜 예약 차단 경고
-    if (date < todayStr) {
-        return alert("오늘 이전의 날짜에는 예약할 수 없습니다.");
-    }
+    if (date < todayStr) return alert("오늘 이전의 날짜에는 예약할 수 없습니다.");
 
     const name = document.getElementById('resName').value.trim();
     const pw = document.getElementById('resPw').value.trim();
@@ -170,14 +198,9 @@ async function addRes() {
         if(reservations.find(r => r.date === date && r.time === t && r.room === room)) 
             return alert("이미 중복된 예약이 있습니다."); 
     }
-    
-    for(let t of targetSlots) { 
-        await db.ref('reservations').push({ room, date, time: t, name, pw, gid }); 
-    }
+    for(let t of targetSlots) { await db.ref('reservations').push({ room, date, time: t, name, pw, gid }); }
     alert("예약 완료");
 }
-
-/* --- 이하 렌더링 및 유틸리티 함수 (이전 답변과 동일하게 최적화됨) --- */
 
 function setView(mode) {
     viewMode = mode;
@@ -222,12 +245,12 @@ function renderWeek(room) {
         const dStr = getDS(d);
         const isSelected = dStr === document.getElementById('resDate').value;
         const isToday = dStr === todayStr;
-        const dayLabel = `${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday ? '<br><span style="font-size:9px;">(오늘)</span>' : ''}`;
+        const dayLabel = `${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday ? '<br><span style="font-size:9px; color:var(--primary); font-weight:bold;">(오늘)</span>' : ''}`;
         html += `<th class="${isSelected?'highlight-col':''}">${dayLabel}</th>`;
     });
     html += `</tr></thead><tbody>`;
 
-    SLOTS.slice(0, -1).forEach((t, idx) => {
+    SLOTS.slice(0, -1).forEach((t) => {
         html += `<tr><td style="background:#f8f9fa; font-weight:bold;">${t}</td>`;
         days.forEach(d => {
             const dStr = getDS(d);
@@ -248,6 +271,7 @@ function renderMonth(room) {
     const todayStr = getDS(new Date());
     const selDate = document.getElementById('resDate').value;
     document.getElementById('currentViewRange').innerText = `${y}년 ${m+1}월`;
+    
     const firstDay = new Date(y, m, 1);
     const startDay = new Date(y, m, 1 - firstDay.getDay()); 
 
@@ -256,13 +280,25 @@ function renderMonth(room) {
         const dStr = getDS(d);
         const isSelected = dStr === selDate;
         const isToday = dStr === todayStr;
+        const isOtherMonth = d.getMonth() !== m;
+        
         const dayDiv = document.createElement('div');
-        dayDiv.className = `month-day ${isSelected?'highlight-col':''}`;
-        if(isToday) dayDiv.style.background = "#fff9db";
-        dayDiv.onclick = () => { document.getElementById('resDate').value = dStr; currentBaseDate = new Date(d); render(); };
+        dayDiv.className = `month-day ${isOtherMonth?'other-month':''} ${isSelected?'highlight-col':''}`;
+        if(isToday) dayDiv.style.backgroundColor = "#fff9db";
+
+        dayDiv.onclick = () => { 
+            document.getElementById('resDate').value = dStr; 
+            currentBaseDate = new Date(d); 
+            render(); 
+        };
+        
         const dayRes = reservations.filter(r => r.date === dStr && r.room === room).sort((a,b)=>a.time.localeCompare(b.time));
         let resHtml = dayRes.map(r => `<div class="res-item">${r.time} ${r.name}</div>`).join('');
-        dayDiv.innerHTML = `<span class="day-num" style="${d.getDay()===0?'color:red;':d.getDay()===6?'color:blue;':''}">${d.getDate()}${isToday?' (오늘)':''}</span><div class="month-res-list">${resHtml}</div>`;
+        dayDiv.innerHTML = `
+            <span class="day-num" style="${d.getDay()===0?'color:red;':d.getDay()===6?'color:blue;':''}">
+                ${d.getDate()}${isToday?' <small style="color:var(--primary)">(오늘)</small>':''}
+            </span>
+            <div class="month-res-list">${resHtml}</div>`;
         container.appendChild(dayDiv);
     }
 }
@@ -293,8 +329,12 @@ function syncEndTime() {
     SLOTS.slice(sIdx+1).forEach(t => { let opt = document.createElement('option'); opt.value=t; opt.innerText=t; endSel.appendChild(opt); });
 }
 function changeRoom(n) { roomIdx = (roomIdx+n+ROOMS.length)%ROOMS.length; render(); }
-function getDS(d) { return d.toISOString().split('T')[0]; }
-function getStartOfWeek(d) { const dd = new Date(d); const day = dd.getDay(); const diff = dd.getDate() - day + (day === 0 ? -6 : 1); return new Date(dd.setDate(diff)); }
+function getStartOfWeek(d) {
+    const dd = new Date(d);
+    const day = dd.getDay();
+    const diff = dd.getDate() - day + (day === 0 ? -6 : 1); // 월요일 기준
+    return new Date(dd.setDate(diff));
+}
 </script>
 </body>
 </html>
