@@ -27,17 +27,14 @@
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px; }
     th { background: #f8f9fa; padding: 6px 0; }
     
-    /* 왼쪽 오늘의 현황 표 행 간격 */
     #todayTable td { padding: 6px 5px; } 
 
-    /* 💡 주간 캘린더 행 높이 대폭 축소 (한 화면에 보이도록) */
     #weekTable td { height: 25px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); } 
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
-    th.highlight-col { border-top: 2px dashed var(--primary) !important; }
+    th.highlight-col { border-top: 2px dashed var(--primary) !important; color: var(--primary); font-weight: bold; }
     .last-row-highlight { border-bottom: 2px dashed var(--primary) !important; }
 
-    /* 월간 캘린더 정렬 유지 */
     #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
     .month-header-wrapper { display: flex; background: #f8f9fa; width: 100%; box-sizing: border-box; }
     .month-header { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; }
@@ -66,7 +63,7 @@
   <div class="notice-top">※ 예약 시 설정된 비밀번호로만 삭제가 가능합니다.</div>
 
   <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
-    <input type="date" id="resDate">
+    <input type="date" id="resDate" onchange="syncFromInput()">
     <div style="display:flex; gap:4px;">
         <select id="startT" style="flex:1;" onchange="syncEndTime()"></select>
         <select id="endT" style="flex:1;"></select>
@@ -120,7 +117,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
-// Firebase 설정 (기존과 동일)
 const firebaseConfig = {
   apiKey: "AIzaSyCenJeE0f4-7SuAD-BHwqy3st0Y2LcAHjg",
   authDomain: "meeting-room-9382e.firebaseapp.com",
@@ -146,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('startT').appendChild(opt);
     });
     syncEndTime();
-    document.getElementById('resDate').value = getDS(new Date());
+    goToday(); // 시작 시 오늘로 초기화
     db.ref('reservations').on('value', snap => {
         const data = snap.val();
         reservations = data ? Object.entries(data).map(([k,v]) => ({key:k, ...v})) : [];
@@ -187,15 +183,20 @@ function renderToday(room) {
 
 function renderWeek(room) {
     const start = getStartOfWeek(currentBaseDate);
+    const todayStr = getDS(new Date());
     const days = [];
     for(let i=0; i<7; i++) days.push(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+    
     document.getElementById('currentViewRange').innerText = `${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
     
     let html = `<thead><tr><th style="width:60px;">시간</th>`;
     days.forEach(d => {
         const dStr = getDS(d);
         const isSelected = dStr === document.getElementById('resDate').value;
-        html += `<th class="${isSelected?'highlight-col':''}">${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})</th>`;
+        const isToday = dStr === todayStr;
+        // 요일 옆에 (오늘) 표시 추가
+        const dayLabel = `${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})${isToday ? '<br><span style="font-size:9px;">(오늘)</span>' : ''}`;
+        html += `<th class="${isSelected?'highlight-col':''}">${dayLabel}</th>`;
     });
     html += `</tr></thead><tbody>`;
 
@@ -222,7 +223,9 @@ function renderMonth(room) {
     container.innerHTML = '';
     const y = currentBaseDate.getFullYear();
     const m = currentBaseDate.getMonth();
+    const todayStr = getDS(new Date());
     const selDate = document.getElementById('resDate').value;
+    
     document.getElementById('currentViewRange').innerText = `${y}년 ${m+1}월`;
     const firstDay = new Date(y, m, 1);
     const startDay = new Date(y, m, 1 - firstDay.getDay()); 
@@ -231,18 +234,54 @@ function renderMonth(room) {
         const d = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + i);
         const dStr = getDS(d);
         const isSelected = dStr === selDate;
+        const isToday = dStr === todayStr;
         const isOtherMonth = d.getMonth() !== m;
+        
         const dayDiv = document.createElement('div');
         dayDiv.className = `month-day ${isOtherMonth?'other-month':''} ${isSelected?'highlight-col':''}`;
-        dayDiv.onclick = () => { document.getElementById('resDate').value = dStr; currentBaseDate = new Date(d); render(); };
+        if(isToday) dayDiv.style.background = "#fff9db"; // 월간에서도 오늘 표시
+
+        dayDiv.onclick = () => { 
+            document.getElementById('resDate').value = dStr; 
+            currentBaseDate = new Date(d); 
+            render(); 
+        };
+        
         const dayRes = reservations.filter(r => r.date === dStr && r.room === room).sort((a,b)=>a.time.localeCompare(b.time));
         let resHtml = dayRes.map(r => `<div class="res-item">${r.time} ${r.name}</div>`).join('');
-        dayDiv.innerHTML = `<span class="day-num" style="${d.getDay()===0?'color:red;':d.getDay()===6?'color:blue;':''}">${d.getDate()}</span><div class="month-res-list">${resHtml}</div>`;
+        dayDiv.innerHTML = `<span class="day-num" style="${d.getDay()===0?'color:red;':d.getDay()===6?'color:blue;':''}">${d.getDate()}${isToday?' (오늘)':''}</span><div class="month-res-list">${resHtml}</div>`;
         container.appendChild(dayDiv);
     }
 }
 
-// 나머지 함수 (addRes, delRes, syncEndTime 등) 동일함
+function syncFromInput() {
+    currentBaseDate = new Date(document.getElementById('resDate').value);
+    render();
+}
+
+function goToday() { 
+    currentBaseDate = new Date(); 
+    document.getElementById('resDate').value = getDS(currentBaseDate); 
+    render(); 
+}
+
+function changeDate(n) { 
+    if(viewMode === 'week') currentBaseDate.setDate(currentBaseDate.getDate() + (n * 7));
+    else currentBaseDate.setMonth(currentBaseDate.getMonth() + n);
+    // 이동한 페이지의 날짜를 왼쪽 입력창에도 반영 (사용자 경험 개선)
+    document.getElementById('resDate').value = getDS(currentBaseDate);
+    render(); 
+}
+
+function quickRes(d, t) { 
+    document.getElementById('resDate').value = d; 
+    document.getElementById('startT').value = t; 
+    syncEndTime(); 
+    currentBaseDate = new Date(d);
+    render(); 
+}
+
+// 공통 로직들
 async function addRes() {
     const date = document.getElementById('resDate').value;
     const name = document.getElementById('resName').value.trim();
@@ -275,24 +314,7 @@ function syncEndTime() {
     SLOTS.slice(sIdx+1).forEach(t => { let opt = document.createElement('option'); opt.value=t; opt.innerText=t; endSel.appendChild(opt); });
 }
 
-function quickRes(d, t) { 
-    document.getElementById('resDate').value = d; 
-    document.getElementById('startT').value = t; 
-    syncEndTime(); 
-    currentBaseDate = new Date(d);
-    render(); 
-}
 function changeRoom(n) { roomIdx = (roomIdx+n+ROOMS.length)%ROOMS.length; render(); }
-function changeDate(n) { 
-    if(viewMode === 'week') currentBaseDate.setDate(currentBaseDate.getDate() + (n * 7));
-    else currentBaseDate.setMonth(currentBaseDate.getMonth() + n);
-    render(); 
-}
-function goToday() { 
-    currentBaseDate = new Date(); 
-    document.getElementById('resDate').value = getDS(currentBaseDate); 
-    render(); 
-}
 function getDS(d) { return d.toISOString().split('T')[0]; }
 function getStartOfWeek(d) { 
     const dd = new Date(d); 
