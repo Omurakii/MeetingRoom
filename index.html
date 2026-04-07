@@ -31,7 +31,8 @@
     .reserved { background-color: #fff9db !important; font-weight: bold; color: #856404; cursor: pointer; }
     .highlight-col { background-color: #fffaf0 !important; border-left: 2px dashed var(--primary) !important; border-right: 2px dashed var(--primary) !important; }
     th.highlight-col { border-top: 2px dashed var(--primary) !important; color: var(--primary); }
-
+    tr:last-child td.highlight-col {border-bottom: 2px dashed var(--primary) !important;}
+    
     /* 📅 월간 캘린더 레이아웃 수정 */
     #monthContainer { display:none; flex:1; flex-direction:column; overflow:hidden; border: 1px solid var(--border); background: var(--border); gap: 1px; }
     .month-header-wrapper { display: flex; background: #f8f9fa; width: 100%; }
