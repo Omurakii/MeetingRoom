@@ -242,20 +242,18 @@ async function addRes() {
             return alert("이미 중복된 예약이 있습니다."); 
     }
 
-    // 5. 이름별 이스터에그 메시지
     if (name === "서동호") alert("동호 출근했니");
     else if (name === "노은영") alert("노머니 퇴근하고 싶어요");
     else if (name === "김연오") alert("큰일났어요");
 
-    // 6. 예약 데이터 묶기 (공통 사용)
+    
     const resPayload = { room, date, targetSlots, name, pw, gid: Date.now() };
 
-    // 7. 이동형 체크: 게임 실행 vs 즉시 저장
     if (name === "이예슬"|| name === "고주현") {
-        tempResData = resPayload; // 정보를 변수에 보관
-        initMinesweeper(); // 지뢰찾기 초기화
-        document.getElementById('gameModal').style.display = 'block'; // 게임창 열기
-        return; // ⚠️ 여기서 함수를 종료하여 아래 "예약 완료"가 바로 뜨지 않게 함
+        tempResData = resPayload; 
+        initMinesweeper(); 
+        document.getElementById('gameModal').style.display = 'block'; 
+        return; // 
     }
 
     // 일반 사용자: 바로 저장
