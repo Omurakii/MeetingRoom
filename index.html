@@ -85,6 +85,15 @@
 
     .scroll-area { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
     .other-month { background: #fafafa; color: #ccc; }
+
+/* --- NEW: 타로 카드 스타일 --- */
+    .tarot-card { width: 60px; height: 100px; perspective: 1000px; cursor: pointer; }
+    .tarot-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+    .tarot-card.flipped .tarot-inner { transform: rotateY(180deg); }
+    .tarot-front, .tarot-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 2px solid #ffd700; }
+    .tarot-back { background: #2e2e4e; color: #ffd700; }
+    .tarot-front { background: white; color: #333; transform: rotateY(180deg); background-size: cover; background-position: center; }
+    
 </style>
 </head>
 <body>
@@ -121,6 +130,7 @@
 
 <div class="right">
   <div class="view-tabs">
+    <button id="fortuneBtn" onclick="showFortune()" style="display: none; background: #ffd700; color: #333; font-weight: bold; margin-right: auto;">🔮 오늘의 운세보기</button>
     <button id="btnWeek" class="active" onclick="setView('week')">주간</button>
     <button id="btnMonth" onclick="setView('month')">월간</button>
   </div>
@@ -153,6 +163,15 @@
     </div>
 </div>
 
+<div id="fortuneModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000;">
+    <div style="position:relative; top:50%; left:50%; transform:translate(-50%, -50%); width:320px; background:#1a1a2e; padding:20px; border-radius:15px; text-align:center; color:white; border:2px solid #484b6a;">
+        <h3 style="color:#e94560; margin-top:0;">🔮 오늘의 타로</h3>
+        <div id="cardContainer" style="display:flex; justify-content:space-around; margin:20px 0;"></div>
+        <div id="fortuneResult" style="min-height:60px; margin-top:15px; font-size:13px; color:#ffd700; line-height:1.5;"></div>
+        <button onclick="closeFortune()" style="margin-top:20px; padding:10px 20px; background:#484b6a; color:white; border:none; border-radius:5px; cursor:pointer;">닫기</button>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -176,6 +195,31 @@ SLOTS.push("18:00");
 
 let reservations = [];
 
+const tarotData = [
+    { name: "0. 바보 (The Fool)", img: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg", desc: "새로운 시작과 모험의 기운이 있습니다. 두려워 말고 발걸음을 내디뎌 보세요!" },
+    { name: "1. 마법사 (The Magician)", img: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg", desc: "당신의 능력을 충분히 발휘할 수 있는 날입니다. 창의적인 아이디어를 실행에 옮기세요." },
+    { name: "2. 고위 여사제 (The High Priestess)", img: "https://upload.wikimedia.org/wikipedia/commons/8/88/RWS_Tarot_02_High_Priestess.jpg", desc: "직관력이 예리해지는 날입니다. 내면의 목소리에 귀를 기울이고 신중하게 행동하세요." },
+    { name: "3. 여황제 (The Empress)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_03_Empress.jpg", desc: "풍요로움과 결실의 상징입니다. 주변 사람들과 따뜻한 마음을 나누기 좋은 날이에요." },
+    { name: "4. 황제 (The Emperor)", img: "https://upload.wikimedia.org/wikipedia/commons/c/c3/RWS_Tarot_04_Emperor.jpg", desc: "질서와 리더십이 필요한 때입니다. 계획을 세우고 강력하게 추진해 보세요." },
+    { name: "5. 교황 (The Hierophant)", img: "https://upload.wikimedia.org/wikipedia/commons/8/8d/RWS_Tarot_05_Hierophant.jpg", desc: "전통과 규칙을 따르는 것이 이로운 날입니다. 조언자의 도움을 받는 것도 좋습니다." },
+    { name: "6. 연인 (The Lovers)", img: "https://upload.wikimedia.org/wikipedia/commons/3/3a/RWS_Tarot_06_Lovers.jpg", desc: "중요한 선택이나 화합이 필요한 순간입니다. 진심을 다해 소통하세요." },
+    { name: "7. 전차 (The Chariot)", img: "https://upload.wikimedia.org/wikipedia/commons/9/9b/RWS_Tarot_07_Chariot.jpg", desc: "강한 추진력으로 장애물을 극복할 수 있습니다. 목표를 향해 직진하세요!" },
+    { name: "8. 힘 (Strength)", img: "https://upload.wikimedia.org/wikipedia/commons/f/f5/RWS_Tarot_08_Strength.jpg", desc: "부드러운 카리스마와 인내심이 승리를 가져옵니다. 감정을 잘 다스려 보세요." },
+    { name: "9. 은둔자 (The Hermit)", img: "https://upload.wikimedia.org/wikipedia/commons/4/4d/RWS_Tarot_09_Hermit.jpg", desc: "잠시 멈춰 자신을 되돌아보는 시간이 필요합니다. 조용한 사색이 답을 줄 거예요." },
+    { name: "10. 운명의 수레바퀴 (Wheel of Fortune)", img: "https://upload.wikimedia.org/wikipedia/commons/3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg", desc: "변화의 흐름이 찾아왔습니다. 긍정적인 변화를 기꺼이 받아들이세요." },
+    { name: "11. 정의 (Justice)", img: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_11_Justice.jpg", desc: "객관적이고 공정하게 상황을 판단해야 합니다. 정직한 행동이 좋은 결과를 낳습니다." },
+    { name: "12. 매달린 사람 (The Hanged Man)", img: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWS_Tarot_12_Hanged_Man.jpg", desc: "새로운 관점에서 상황을 바라보세요. 희생과 인내가 필요한 때일 수 있습니다." },
+    { name: "13. 죽음 (Death)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWS_Tarot_13_Death.jpg", desc: "끝은 곧 새로운 시작입니다. 불필요한 것을 정리하고 변화를 준비하세요." },
+    { name: "14. 절제 (Temperance)", img: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_14_Temperance.jpg", desc: "균형과 조화가 핵심입니다. 감정과 상황을 적절히 조절하며 나아가세요." },
+    { name: "15. 악마 (The Devil)", img: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWS_Tarot_15_Devil.jpg", desc: "집착이나 유혹에 빠지지 않도록 주의하세요. 스스로를 얽매는 것에서 벗어나야 합니다." },
+    { name: "16. 탑 (The Tower)", img: "https://upload.wikimedia.org/wikipedia/commons/5/53/RWS_Tarot_16_Tower.jpg", desc: "갑작스러운 변화에 놀랄 수 있지만, 이는 더 단단해지기 위한 과정입니다." },
+    { name: "17. 별 (The Star)", img: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_17_Star.jpg", desc: "희망의 빛이 비치고 있습니다. 긍정적인 생각으로 꿈을 향해 나아가세요." },
+    { name: "18. 달 (The Moon)", img: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWS_Tarot_18_Moon.jpg", desc: "불안함과 혼란이 있을 수 있지만, 직관을 믿고 조심스럽게 움직이세요." },
+    { name: "19. 태양 (The Sun)", img: "https://upload.wikimedia.org/wikipedia/commons/9/94/RWS_Tarot_19_Sun.jpg", desc: "매우 긍정적이고 활기찬 날입니다! 성공과 기쁨이 당신과 함께합니다." },
+    { name: "20. 심판 (Judgement)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d4/RWS_Tarot_20_Judgement.jpg", desc: "과거의 노력이 결실을 맺는 부활의 시기입니다. 중요한 결정을 내리기 좋습니다." },
+    { name: "21. 세계 (The World)", img: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_21_World.jpg", desc: "완성과 성공을 의미합니다. 한 단계를 마무리하고 큰 만족을 얻을 수 있는 날입니다." }
+];
+
 document.addEventListener("DOMContentLoaded", () => {
     SLOTS.slice(0, -1).forEach(t => {
         let opt = document.createElement('option'); opt.value = t; opt.innerText = t;
@@ -190,7 +234,53 @@ document.addEventListener("DOMContentLoaded", () => {
         reservations = data ? Object.entries(data).map(([k,v]) => ({key:k, ...v})) : [];
         render();
     });
+/* --- NEW: 이름 감지 로직 (이동형, 노은영, 고주현 등) --- */
+    const luckyPeople = ["노은영", "고주현", "이동형", "홍은진"];
+    const nameInput = document.getElementById('resName');
+    const fBtn = document.getElementById('fortuneBtn');
+
+    if (nameInput) {
+        nameInput.addEventListener('input', function() {
+            if (luckyPeople.includes(this.value.trim())) {
+                fBtn.style.display = 'inline-block';
+            } else {
+                fBtn.style.display = 'none';
+            }
+        });
+    }
 });
+
+/* --- NEW: 타로 관련 함수 --- */
+function showFortune() {
+    const container = document.getElementById('cardContainer');
+    const resultDiv = document.getElementById('fortuneResult');
+    container.innerHTML = '';
+    resultDiv.innerText = '';
+    document.getElementById('fortuneModal').style.display = 'block';
+
+    const shuffled = [...tarotData].sort(() => Math.random() - 0.5).slice(0, 4);
+
+    shuffled.forEach((data) => {
+        const card = document.createElement('div');
+        card.className = 'tarot-card';
+        card.innerHTML = `
+            <div class="tarot-inner">
+                <div class="tarot-back">?</div>
+                <div class="tarot-front" style="background-image: url('${data.img}')"></div>
+            </div>
+        `;
+        card.onclick = function() {
+            if (this.classList.contains('flipped')) return;
+            document.querySelectorAll('.tarot-card').forEach(c => c.style.pointerEvents = 'none');
+            this.classList.add('flipped');
+            setTimeout(() => {
+                resultDiv.innerHTML = `<strong>[${data.name}]</strong><br>${data.desc}`;
+            }, 600);
+        };
+        container.appendChild(card);
+    });
+}
+function closeFortune() { document.getElementById('fortuneModal').style.display = 'none'; }
 
 // 💡 날짜 로컬 변환 함수 (하루 밀림 방지 핵심)
 function getDS(d) {
