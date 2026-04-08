@@ -46,15 +46,7 @@
     .month-header div { border-right: 1px solid var(--border); padding: 12px 0; text-align: center; font-size: 12px; font-weight: bold; background: #f8f9fa; }
     .header-spacer { width: 16.5px; background:white; border:none; }
 
-    /* 월간 그리드 배경 */
-    .month-grid { 
-        display: grid; 
-        grid-template-columns: repeat(7, 1fr); 
-        flex: 1; 
-        overflow: hidden; /* 전체 스크롤은 막고 칸별 스크롤만 허용 */
-        background: var(--border); 
-        gap: 1px; 
-    }
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: scroll; background: var(--border); gap: 1px; }
     
     /* 개별 날짜 칸 */
     .month-day { 
