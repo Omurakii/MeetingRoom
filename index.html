@@ -142,6 +142,17 @@
   </div>
 </div>
 
+<div id="gameModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="position:relative; top:50%; left:50%; transform:translate(-50%, -50%); width:260px; background:white; padding:20px; border-radius:10px; text-align:center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:var(--primary);">🚩 지뢰찾기 (4x4)</h3>
+        <p style="font-size:12px; color:#666;">지뢰를 피해 모든 칸을 열어보세요!</p>
+        
+        <div id="gameBoard" style="display:grid; grid-template-columns: repeat(4, 50px); gap:5px; justify-content:center; margin:20px 0;"></div>
+        
+        <button onclick="closeGame()" style="width:100%; padding:10px; background:#ddd; border:none; border-radius:5px; cursor:pointer;">닫기</button>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -228,6 +239,10 @@ async function addRes() {
     }
     if (name === "김연오") {
         alert("큰일났어요"); 
+    }
+    if (name === "이동형") {
+        initMinesweeper();
+        document.getElementById('gameModal').style.display = 'block';
     }
     const pw = document.getElementById('resPw').value.trim();
     if(!name || pw.length<4) return alert("성함과 비번 4자리를 입력하세요.");
@@ -399,6 +414,76 @@ function getStartOfWeek(d) {
     const day = dd.getDay();
     const diff = dd.getDate() - day + (day === 0 ? -6 : 1); // 월요일 기준
     return new Date(dd.setDate(diff));
+}
+
+// 2. 게임 관련 변수 및 로직
+let mineBoard = [];
+let revealedCount = 0;
+const gridSize = 4;
+const mineCount = 3;
+
+function initMinesweeper() {
+    const boardElement = document.getElementById('gameBoard');
+    boardElement.innerHTML = '';
+    mineBoard = Array(gridSize * gridSize).fill(0);
+    revealedCount = 0;
+
+    // 지뢰 무작위 배치
+    let plantedMines = 0;
+    while (plantedMines < mineCount) {
+        let index = Math.floor(Math.random() * 16);
+        if (mineBoard[index] !== 'M') {
+            mineBoard[index] = 'M';
+            plantedMines++;
+        }
+    }
+
+    // 주변 지뢰 개수 계산
+    for (let i = 0; i < 16; i++) {
+        if (mineBoard[i] === 'M') continue;
+        let count = 0;
+        const r = Math.floor(i / 4), c = i % 4;
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                const nr = r + dr, nc = c + dc;
+                if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4 && mineBoard[nr * 4 + nc] === 'M') count++;
+            }
+        }
+        mineBoard[i] = count;
+    }
+
+    // 화면에 그리기
+    mineBoard.forEach((val, idx) => {
+        const cell = document.createElement('div');
+        cell.style.cssText = "width:50px; height:50px; background:#eee; line-height:50px; font-weight:bold; cursor:pointer; border-radius:4px; transition:0.2s;";
+        cell.onmouseover = () => cell.style.background = "#e0e0e0";
+        cell.onmouseout = () => { if(cell.innerText === "") cell.style.background = "#eee"; };
+        
+        cell.onclick = () => {
+            if (val === 'M') {
+                cell.style.background = "#ff6b6b";
+                cell.innerText = "💣";
+                setTimeout(() => { alert("펑! 지뢰입니다. 다시 도전하세요!"); initMinesweeper(); }, 100);
+            } else {
+                if (cell.innerText !== "") return; // 이미 열린 칸 무시
+                cell.style.background = "#fff";
+                cell.style.border = "1px solid #ddd";
+                cell.innerText = val === 0 ? "" : val;
+                cell.style.color = val === 1 ? "blue" : val === 2 ? "green" : "red";
+                revealedCount++;
+                
+                // 승리 조건: (전체 칸 - 지뢰 수) 만큼 열었을 때
+                if (revealedCount === (16 - mineCount)) {
+                    setTimeout(() => { alert("🎉 축하합니다! 모든 지뢰를 피하셨습니다!"); closeGame(); }, 100);
+                }
+            }
+        };
+        boardElement.appendChild(cell);
+    });
+}
+
+function closeGame() {
+    document.getElementById('gameModal').style.display = 'none';
 }
 </script>
 </body>
