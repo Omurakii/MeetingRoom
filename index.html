@@ -209,7 +209,7 @@ async function addRes() {
     if (date < todayStr) return alert("오늘 이전의 날짜에는 예약할 수 없습니다.");
 
     if (date < "2026-04-13") {
-        return alert("회의실 예약은 13일(월)부터 가능합니다.");
+        return alert("회의실 예약은 13일(월)날짜부터 가능합니다.");
     }
 
     const name = document.getElementById('resName').value.trim();
