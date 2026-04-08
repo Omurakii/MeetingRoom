@@ -46,16 +46,41 @@
     .month-header div { border-right: 1px solid var(--border); padding: 12px 0; text-align: center; font-size: 12px; font-weight: bold; background: #f8f9fa; }
     .header-spacer { width: 16.5px; background:white; border:none; }
 
-    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; overflow-y: scroll; background: var(--border); gap: 1px; }
+    /* 월간 그리드 배경 */
+    .month-grid { 
+        display: grid; 
+        grid-template-columns: repeat(7, 1fr); 
+        flex: 1; 
+        overflow: hidden; /* 전체 스크롤은 막고 칸별 스크롤만 허용 */
+        background: var(--border); 
+        gap: 1px; 
+    }
+    
+    /* 개별 날짜 칸 */
     .month-day { 
         background: white; 
-        min-height: 110px; 
+        height: 120px;        /* 👈 높이를 110~120px 정도로 고정 (원하는 만큼 조절) */
         padding: 8px; 
         display: flex; 
         flex-direction: column; 
         cursor: pointer; 
         box-sizing: border-box;
-        border: 1px solid transparent; /* 기본 상태 */
+        border: 1px solid transparent; 
+        overflow-y: auto;     /* 👈 내용이 넘치면 이 칸 안에서만 스크롤 발생 */
+    }
+    
+    /* 💡 스크롤바를 아주 얇고 깔끔하게 만드는 스타일 (추천) */
+    .month-day::-webkit-scrollbar {
+        width: 4px; /* 스크롤바 두께 */
+    }
+    
+    .month-day::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.1); /* 스크롤바 색상 (연하게) */
+        border-radius: 10px;
+    }
+    
+    .month-day::-webkit-scrollbar-track {
+        background: transparent; /* 배경은 투명하게 */
     }
     /* 선택된 날짜 강조 (사방 테두리) */
     .month-day.highlight-col { 
