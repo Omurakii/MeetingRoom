@@ -214,51 +214,66 @@ async function cleanupOldData() {
     }
 }
 
+let tempResData = null; // 이동형 전용: 예약 정보를 잠시 담아둘 변수
+
 async function addRes() {
     const date = document.getElementById('resDate').value;
     const todayStr = getDS(new Date());
+    
+    // 1. 날짜 검증
     if (date < todayStr) return alert("오늘 이전의 날짜에는 예약할 수 없습니다.");
-
-    if (date < "2026-04-13") {
-        return alert("회의실 예약은 13일(월)날짜부터 가능합니다.");
-    }
+    if (date < "2026-04-13") return alert("회의실 예약은 13일(월)날짜부터 가능합니다.");
 
     const name = document.getElementById('resName').value.trim();
-
-    if (name === "이예슬") {
-        alert("회의실 예약은 무슨 ㅋㅋ 적당히 술드시죠."); 
-    }
-    if (name === "고주현") {
-        alert("5층에 예약은 왜 하는거야"); 
-    }
-    if (name === "서동호") {
-        alert("동호 출근했니"); 
-    }
-    if (name === "노은영") {
-        alert("노머니 퇴근하고 싶어요"); 
-    }
-    if (name === "김연오") {
-        alert("큰일났어요"); 
-    }
-    if (name === "이동형") {
-        initMinesweeper();
-        document.getElementById('gameModal').style.display = 'block';
-    }
     const pw = document.getElementById('resPw').value.trim();
-    if(!name || pw.length<4) return alert("성함과 비번 4자리를 입력하세요.");
     
+    // 2. 입력 검증
+    if(!name || pw.length < 4) return alert("성함과 비번 4자리를 입력하세요.");
+
+    // 3. 시간 및 슬롯 계산
     const startIdx = SLOTS.indexOf(document.getElementById('startT').value);
     const endIdx = SLOTS.indexOf(document.getElementById('endT').value);
     const targetSlots = SLOTS.slice(startIdx, endIdx);
-    const gid = Date.now();
     const room = ROOMS[roomIdx];
 
+    // 4. 중복 체크
     for(let t of targetSlots) { 
         if(reservations.find(r => r.date === date && r.time === t && r.room === room)) 
             return alert("이미 중복된 예약이 있습니다."); 
     }
-    for(let t of targetSlots) { await db.ref('reservations').push({ room, date, time: t, name, pw, gid }); }
+
+    // 5. 이름별 이스터에그 메시지
+    if (name === "이예슬") alert("회의실 예약은 무슨 ㅋㅋ 적당히 술드시죠.");
+    else if (name === "고주현") alert("5층에 예약은 왜 하는거야");
+    else if (name === "서동호") alert("동호 출근했니");
+    else if (name === "노은영") alert("노머니 퇴근하고 싶어요");
+    else if (name === "김연오") alert("큰일났어요");
+
+    // 6. 예약 데이터 묶기 (공통 사용)
+    const resPayload = { room, date, targetSlots, name, pw, gid: Date.now() };
+
+    // 7. 이동형 체크: 게임 실행 vs 즉시 저장
+    if (name === "이동형") {
+        tempResData = resPayload; // 정보를 변수에 보관
+        initMinesweeper(); // 지뢰찾기 초기화
+        document.getElementById('gameModal').style.display = 'block'; // 게임창 열기
+        return; // ⚠️ 여기서 함수를 종료하여 아래 "예약 완료"가 바로 뜨지 않게 함
+    }
+
+    // 일반 사용자: 바로 저장
+    await commitReservation(resPayload);
+}
+
+/**
+ * 실제로 Firebase에 데이터를 밀어넣는 공용 함수
+ */
+async function commitReservation(data) {
+    const { room, date, targetSlots, name, pw, gid } = data;
+    for(let t of targetSlots) { 
+        await db.ref('reservations').push({ room, date, time: t, name, pw, gid }); 
+    }
     alert("예약 완료");
+    if(typeof loadData === 'function') loadData(); // 화면 갱신 함수가 있다면 호출
 }
 
 function setView(mode) {
@@ -416,65 +431,121 @@ function getStartOfWeek(d) {
     return new Date(dd.setDate(diff));
 }
 
-// 2. 게임 관련 변수 및 로직
-let mineBoard = [];
-let revealedCount = 0;
-const gridSize = 4;
-const mineCount = 3;
+/* --- 지뢰찾기 게임 관련 변수 및 설정 --- */
+let mineBoard = [];      // 지뢰 및 숫자 정보를 담을 배열
+let revealedCount = 0;   // 사용자가 연 칸의 개수
+const gridSize = 4;      // 4x4 격자 크기
+const mineCount = 3;     // 숨겨진 지뢰 개수 (난이도 조절 가능)
 
+/**
+ * 지뢰찾기 게임 초기화 및 시작
+ */
 function initMinesweeper() {
     const boardElement = document.getElementById('gameBoard');
-    boardElement.innerHTML = '';
-    mineBoard = Array(gridSize * gridSize).fill(0);
-    revealedCount = 0;
+    if (!boardElement) return;
 
-    // 지뢰 무작위 배치
+    boardElement.innerHTML = ''; // 기존 보드 초기화
+    mineBoard = Array(gridSize * gridSize).fill(0); // 0으로 가득 찬 16칸 생성
+    revealedCount = 0; // 카운트 초기화
+
+    // 1. 지뢰(M) 무작위 배치
     let plantedMines = 0;
     while (plantedMines < mineCount) {
-        let index = Math.floor(Math.random() * 16);
+        let index = Math.floor(Math.random() * (gridSize * gridSize));
         if (mineBoard[index] !== 'M') {
             mineBoard[index] = 'M';
             plantedMines++;
         }
     }
 
-    // 주변 지뢰 개수 계산
-    for (let i = 0; i < 16; i++) {
+    // 2. 주변 지뢰 개수 계산 (숫자 채우기)
+    for (let i = 0; i < gridSize * gridSize; i++) {
         if (mineBoard[i] === 'M') continue;
+        
         let count = 0;
-        const r = Math.floor(i / 4), c = i % 4;
+        const r = Math.floor(i / gridSize);
+        const c = i % gridSize;
+
+        // 인접한 8개 칸 검사
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
-                const nr = r + dr, nc = c + dc;
-                if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4 && mineBoard[nr * 4 + nc] === 'M') count++;
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+                    if (mineBoard[nr * gridSize + nc] === 'M') count++;
+                }
             }
         }
         mineBoard[i] = count;
     }
 
-    // 화면에 그리기
+    // 3. 화면에 칸 생성 및 이벤트 연결
     mineBoard.forEach((val, idx) => {
         const cell = document.createElement('div');
-        cell.style.cssText = "width:50px; height:50px; background:#eee; line-height:50px; font-weight:bold; cursor:pointer; border-radius:4px; transition:0.2s;";
-        cell.onmouseover = () => cell.style.background = "#e0e0e0";
-        cell.onmouseout = () => { if(cell.innerText === "") cell.style.background = "#eee"; };
-        
+        // 디자인 설정
+        cell.style.cssText = `
+            width: 50px; 
+            height: 50px; 
+            background: #eee; 
+            line-height: 50px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 4px; 
+            transition: 0.2s; 
+            user-select: none;
+        `;
+
+        // [우클릭] 깃발 토글 기능
+        cell.oncontextmenu = (e) => {
+            e.preventDefault(); // 기본 메뉴 안 뜨게 방지
+            if (cell.style.background === "rgb(255, 255, 255)") return; // 이미 열린 칸은 무시
+
+            if (cell.innerText === "🚩") {
+                cell.innerText = "";
+            } else {
+                cell.innerText = "🚩";
+                cell.style.color = "red";
+            }
+        };
+
+        // [좌클릭] 칸 열기 기능
         cell.onclick = () => {
+            if (cell.innerText === "🚩") return; // 깃발 꽂힌 칸은 클릭 방지
+            if (cell.style.background === "rgb(255, 255, 255)") return; // 이미 열린 칸 클릭 무시
+
             if (val === 'M') {
+                // 지뢰를 밟았을 때
                 cell.style.background = "#ff6b6b";
                 cell.innerText = "💣";
-                setTimeout(() => { alert("펑! 지뢰입니다. 다시 도전하세요!"); initMinesweeper(); }, 100);
+                setTimeout(() => { 
+                    alert("펑! 지뢰를 밟았습니다. 다시 도전해보세요!"); 
+                    initMinesweeper(); 
+                }, 100);
             } else {
-                if (cell.innerText !== "") return; // 이미 열린 칸 무시
+                // 안전한 칸을 열었을 때
                 cell.style.background = "#fff";
                 cell.style.border = "1px solid #ddd";
                 cell.innerText = val === 0 ? "" : val;
-                cell.style.color = val === 1 ? "blue" : val === 2 ? "green" : "red";
-                revealedCount++;
                 
-                // 승리 조건: (전체 칸 - 지뢰 수) 만큼 열었을 때
+                // 숫자별 색상 지정
+                if (val === 1) cell.style.color = "blue";
+                else if (val === 2) cell.style.color = "green";
+                else if (val >= 3) cell.style.color = "red";
+                
+                revealedCount++;
+
+                // 승리 조건 체크
                 if (revealedCount === (16 - mineCount)) {
-                    setTimeout(() => { alert("🎉 축하합니다! 모든 지뢰를 피하셨습니다!"); closeGame(); }, 100);
+                    setTimeout(async () => {
+                        alert("🎉 지뢰를 모두 찾았습니다! 예약이 진행됩니다.");
+                        
+                        if (tempResData) {
+                            await commitReservation(tempResData); // 보관했던 데이터로 저장 실행
+                            tempResData = null; // 데이터 비우기
+                        }
+                        
+                        closeGame(); // 게임 모달 닫기
+                    }, 100);
                 }
             }
         };
@@ -482,8 +553,12 @@ function initMinesweeper() {
     });
 }
 
+/**
+ * 게임 모달 닫기
+ */
 function closeGame() {
-    document.getElementById('gameModal').style.display = 'none';
+    const modal = document.getElementById('gameModal');
+    if (modal) modal.style.display = 'none';
 }
 </script>
 </body>
