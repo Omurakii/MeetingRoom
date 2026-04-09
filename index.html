@@ -652,37 +652,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // 1. 사다리 팝업 열기
 function showLadderSetup() {
-    initLadderGame(); 
-    const modal = document.getElementById('ladderModal');
-    if (modal) {
-        modal.style.display = "block";
-    }
-}
-
-// 2. 사다리 팝업 닫기
-function closeLadder() {
-    const modal = document.getElementById('ladderModal');
-    if(modal) modal.style.display = "none";
-}
-
-// 1. 사다리 팝업 열기
-function showLadderSetup() {
-    // 팝업을 열기 전 항상 게임판을 초기화합니다.
-    initLadderGame(); 
-    const modal = document.getElementById('ladderModal');
-    if (modal) {
-        modal.style.display = "block";
-    }
-}
-
-// 2. 사다리 팝업 닫기
-function closeLadder() {
-    const modal = document.getElementById('ladderModal');
-    if(modal) modal.style.display = "none";
-}
-
-// 1. 사다리 팝업 열기
-function showLadderSetup() {
     // 팝업 열 때 현재 설정된 인원만큼 즉시 생성
     initLadderGame(); 
     const modal = document.getElementById('ladderModal');
@@ -697,7 +666,7 @@ function closeLadder() {
     if(modal) modal.style.display = "none";
 }
 
-// 3. 사다리 게임 초기화 (설정 적용 시 실행)
+// 3. 사다리 게임 초기화 (설정 적용 버튼 클릭 시 실행)
 function initLadderGame() {
     const memberInput = document.getElementById('memberCount');
     const bombInput = document.getElementById('bombCount');
@@ -722,13 +691,15 @@ function initLadderGame() {
     const resultArea = document.getElementById('ladderResults');
     const ladderBoard = document.getElementById('ladderBoard');
     
-    // [중요] 기존 내용을 완전히 비움 (설정 재적용 시 필수)
+    // [중요] 기존 내용을 완전히 비움 (이게 있어야 인원 변경이 반영됨)
     inputArea.innerHTML = '';
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
 
-    // 스크롤 리셋
-    if(ladderBoard) ladderBoard.scrollLeft = 0;
+    // 부모 컨테이너의 너비를 초기화하여 가로 스크롤이 인원에 맞게 생기도록 설정
+    if(ladderBoard) {
+        ladderBoard.scrollLeft = 0;
+    }
 
     // 결과 데이터 생성 및 셔플
     let results = new Array(n).fill('통과');
@@ -737,12 +708,12 @@ function initLadderGame() {
 
     // 인원수(n)만큼 루프를 돌며 요소 생성
     for (let i = 0; i < n; i++) {
-        // [상단] 이름 입력 영역
+        // [상단] 이름 입력 영역 (각 칸의 너비를 고정하여 인원이 많아지면 옆으로 밀리게 함)
         const inputDiv = document.createElement('div');
-        inputDiv.style.cssText = "text-align:center; flex:1; min-width:80px;";
+        inputDiv.style.cssText = "text-align:center; flex: 0 0 100px; padding:0 5px;"; 
         inputDiv.innerHTML = `
-            <input type="text" placeholder="이름" style="width:65px; text-align:center; border:1px solid #ddd; padding:5px; border-radius:4px; font-size:12px;"><br>
-            <button onclick="startLadder(event, ${i})" style="margin-top:5px; cursor:pointer; padding: 3px 10px; font-size:11px; background:var(--primary); color:white; border:none; border-radius:3px; font-weight:bold;">시작</button>
+            <input type="text" placeholder="이름" style="width:70px; text-align:center; border:1px solid #ddd; padding:5px; border-radius:4px; font-size:12px;"><br>
+            <button onclick="startLadder(event, ${i})" style="margin-top:5px; cursor:pointer; padding: 3px 10px; font-size:11px; background:var(--primary, #007bff); color:white; border:none; border-radius:3px; font-weight:bold;">시작</button>
         `;
         inputArea.appendChild(inputDiv);
 
@@ -750,7 +721,7 @@ function initLadderGame() {
         const col = document.createElement('div');
         col.className = 'ladder-col';
         col.id = `ladder-col-${i}`;
-        col.style.cssText = "flex: 1; position: relative; height: 250px; min-width:80px;";
+        col.style.cssText = "flex: 0 0 100px; position: relative; height: 250px;";
 
         const verticalBar = document.createElement('div');
         verticalBar.style.cssText = `
@@ -768,12 +739,12 @@ function initLadderGame() {
 
         // [하단] 결과 카드 영역
         const resDiv = document.createElement('div');
-        resDiv.style.cssText = "flex:1; display:flex; justify-content:center; min-width:80px;";
+        resDiv.style.cssText = "flex: 0 0 100px; display:flex; justify-content:center;";
         resDiv.innerHTML = `
             <div class="tarot-card" id="res-${i}">
                 <div class="tarot-inner">
                     <div class="tarot-back">?</div>
-                    <div class="tarot-front" style="font-size:13px; font-weight:bold; color:var(--primary);">${results[i]}</div>
+                    <div class="tarot-front" style="font-size:13px; font-weight:bold; color:var(--primary, #007bff);">${results[i]}</div>
                 </div>
             </div>`;
         resultArea.appendChild(resDiv);
