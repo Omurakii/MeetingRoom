@@ -19,9 +19,22 @@
 
     .notice-top { font-size: 11px; color: #666; margin: -5px 0 15px; text-align: center; line-height: 1.5; background: #fff5f0; padding: 5px; border-radius: 4px; }
 
-    .view-tabs { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px; }
+    .view-tabs { 
+        display: flex; 
+        justify-content: flex-end; 
+        gap: 5px; 
+        margin-bottom: 10px; 
+        align-items: center;  /* 추가된 부분 */
+        width: 100%;          /* 추가된 부분 */
+    }
     .view-tabs button { background: #ddd; color: #333; font-size: 12px; }
     .view-tabs button.active { background: var(--primary); color: white; }
+
+    /* 2️⃣ 여기에 호버 스타일을 새로 추가하세요 */
+    #specialButtons button:hover {
+        filter: brightness(90%);
+        transition: 0.2s;
+    }
 
     table { border-collapse: collapse; width:100%; table-layout: fixed; background: white; }
     th, td { border: 1px solid var(--border); text-align: center; font-size: 11px;}
@@ -130,7 +143,10 @@
 
 <div class="right">
   <div class="view-tabs">
-    <button id="fortuneBtn" onclick="showFortune()" style="display: none; background: #ffd700; color: #333; font-weight: bold; margin-right: auto;">🔮 오늘의 운세보기</button>
+    <div id="specialButtons" style="display: none; margin-right: auto; gap: 5px;">
+        <button id="fortuneBtn" onclick="showFortune()" style="background: #ffd700; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🔮 타로보기</button>
+        <button id="zodiacBtn" onclick="showZodiac()" style="background: #ffecb3; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🐾 띠별운세</button>
+    </div>
     <button id="btnWeek" class="active" onclick="setView('week')">주간</button>
     <button id="btnMonth" onclick="setView('month')">월간</button>
   </div>
@@ -172,6 +188,16 @@
     </div>
 </div>
 
+<div id="zodiacModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:3000;">
+    <div style="position:relative; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:650px; height:85vh; background:white; padding:20px; border-radius:15px; display:flex; flex-direction:column;">
+        <h2 style="text-align:center; color:#333; margin-top:0;">📅 <span id="zodiacDate"></span> 띠별 운세</h2>
+        <p style="text-align:center; font-size:12px; color:#888; margin-top:-10px;">※ 매일 새로운 운세가 찾아옵니다.</p>
+        <div id="zodiacGrid" style="flex:1; display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:15px; overflow-y:auto; padding:10px;">
+            </div>
+        <button onclick="closeZodiac()" style="margin-top:15px; width:100%; padding:12px; background:#e76115; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px;">닫기</button>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -194,6 +220,77 @@ for(let h=8; h<=17; h++) { for(let m of ["00","30"]) { if(h===8 && m==="00") con
 SLOTS.push("18:00");
 
 let reservations = [];
+
+// 12지신 데이터 및 풍부한 운세 문구
+const zodiacConfig = [
+    { animal: "쥐띠", emoji: "🐭", years: ["72년", "84년", "96년", "08년", "20년"], 
+      pool: ["노력의 결실이 맺히는 날", "새로운 인연이 찾아옴", "금전운이 상승하는 기운", "말실수를 조심해야 하는 날", "뜻밖의 행운이 찾아옵니다", "집중력이 매우 좋은 하루", "주변의 도움을 받게 됨", "포기하지 않으면 승리함", "작은 것에 만족하면 큰 복이 옴", "컨디션 조절이 필요한 날"] },
+    { animal: "소띠", emoji: "🐮", years: ["61년", "73년", "85년", "97년", "09년"], 
+      pool: ["성실함이 보상받는 날", "묵묵히 자기 길을 가세요", "가까운 이와 즐거운 시간", "참는 자에게 복이 옵니다", "기다리던 소식이 들려옴", "건강한 에너지가 넘치는 날", "동쪽에서 길운이 들어옵니다", "오늘은 쉬어가는 것이 상책", "계획한 일이 순조롭게 진행됨", "자신감을 가져도 좋은 날"] },
+    { animal: "호랑이띠", emoji: "🐯", years: ["62년", "74년", "86년", "98년", "10년"], 
+      pool: ["강한 추진력이 필요한 날", "리더십을 발휘하기 좋음", "자신감이 넘쳐 흐르는 하루", "장애물이 사라지는 기운", "새로운 도전을 시작해보세요", "나를 돕는 귀인을 만납니다", "결단력을 보여주어야 할 때", "예상치 못한 기쁨이 있음", "열정이 성과로 이어지는 날", "과감한 선택이 이득을 줌"] },
+    { animal: "토끼띠", emoji: "🐰", years: ["63년", "75년", "87년", "99년", "11년"], 
+      pool: ["유연한 대처가 필요한 날", "아이디어가 샘솟는 하루", "가족과의 화합이 중요한 날", "예술적 감각이 빛을 발함", "주변 사람들과 소통하세요", "차분한 마음이 정답입니다", "작은 이득이 모여 큰 결실로", "대인관계가 원만해지는 날", "따뜻한 배려가 복을 부름", "직관을 믿고 따라보세요"] },
+    { animal: "용띠", emoji: "🐲", years: ["64년", "76년", "88년", "00년", "12년"], 
+      pool: ["큰 뜻을 펼치기 좋은 날", "명예운이 상승하는 시기", "변화를 두려워하지 마세요", "주변의 시선을 한몸에 받음", "목표 달성이 코앞에 있음", "에너지를 한곳에 집중할 때", "능력을 인정받는 하루", "막혔던 일이 풀리기 시작함", "긍정적인 마인드가 핵심", "귀한 손님이 찾아올 운세"] },
+    { animal: "뱀띠", emoji: "🐍", years: ["65년", "77년", "89년", "01년", "13년"], 
+      pool: ["신중함이 최고의 무기", "지혜로운 판단이 돋보임", "내실을 다지기에 좋은 날", "비밀스러운 행운이 따름", "관찰력을 발휘해보세요", "서두르지 말고 천천히", "나만의 시간을 갖는 게 중요", "심사숙고 끝에 좋은 결과", "금전 흐름이 원활해짐", "직감을 믿으면 이득이 생김"] },
+    { animal: "말띠", emoji: "🐴", years: ["66년", "78년", "90년", "02년", "14년"], 
+      pool: ["활발한 활동이 복을 부름", "밝은 웃음이 행운의 열쇠", "대외적인 활동에 길한 날", "여행이나 이동수가 있음", "막혔던 소통이 뚫리는 날", "자신 있게 의견을 내보세요", "기분 좋은 만남이 기다림", "활력이 넘치는 생산적인 날", "인기운이 상승하고 있음", "성공의 기운이 강하게 작용"] },
+    { animal: "양띠", emoji: "🐏", years: ["67년", "79년", "91년", "03년", "15년"], 
+      pool: ["온화함이 승리를 가져옴", "협력자와 손을 잡으세요", "평화로운 하루가 지속됨", "배려하는 마음이 큰 복으로", "예술적인 영감이 떠오름", "주변의 칭찬이 자자한 날", "마음의 평온을 유지하세요", "화합을 통해 성과를 냄", "안정적인 흐름이 이어짐", "함께하면 기쁨이 두 배"] },
+    { animal: "원숭이띠", emoji: "🐵", years: ["68년", "80년", "92년", "04년", "16년"], 
+      pool: ["재치 있는 행동이 빛남", "임기응변이 필요한 순간", "즐거운 소식이 찾아옵니다", "두뇌 회전이 매우 빠른 날", "새로운 기술을 익히기 좋음", "다재다능함을 뽐내보세요", "사교운이 매우 좋은 하루", "웃음꽃이 피는 즐거운 날", "뜻밖의 제안을 받게 됨", "주인공이 되는 기분"] },
+    { animal: "닭띠", emoji: "🐔", years: ["69년", "81년", "93년", "05년", "17년"], 
+      pool: ["계획적인 행동이 필요함", "정교한 작업에 길한 날", "성실함이 인정을 받음", "주변을 정리하기 좋은 날", "자신만의 스타일을 고수하세요", "분석적인 사고가 도움 됨", "약속을 잘 지키면 복이 옴", "미뤄둔 일을 처리하세요", "체계적인 관리가 수익으로", "확신을 가지고 나아갈 때"] },
+    { animal: "개띠", emoji: "🐶", years: ["70년", "82년", "94년", "06년", "18년"], 
+      pool: ["의리를 지키면 큰 보상", "정직한 마음이 통하는 날", "든든한 조력자를 만남", "책임감 있는 모습이 멋짐", "믿음직한 하루를 보냅니다", "주변의 신뢰가 쌓이는 날", "한결같은 모습이 길함", "따뜻한 조언을 듣게 됨", "안정적인 성장이 기대됨", "진심은 언제나 통합니다"] },
+    { animal: "돼지띠", emoji: "🐷", years: ["71년", "83년", "95년", "07년", "19년"], 
+      pool: ["여유로운 마음이 행복을 줌", "먹을 복이 넘치는 하루", "낙천적인 태도가 행운을", "재물운이 따르는 기분", "풍요로움을 만끽하세요", "주변과 나누면 복이 배가 됨", "스트레스가 해소되는 날", "즐거운 파티나 모임의 기운", "마음먹은 대로 풀리는 날", "안식과 평화가 깃드는 하루"] }
+];
+
+// 띠별 운세 보기 함수
+function showZodiac() {
+    const grid = document.getElementById('zodiacGrid');
+    const dateTitle = document.getElementById('zodiacDate');
+    const now = new Date();
+    
+    // 날짜 표시
+    dateTitle.innerText = `${now.getMonth()+1}월 ${now.getDate()}일`;
+    grid.innerHTML = '';
+    
+    // 날짜 기반 시드 (매일 바뀌게 함)
+    const daySeed = now.getFullYear() + now.getMonth() + now.getDate();
+
+    zodiacConfig.forEach((item) => {
+        let cardHtml = `
+            <div style="border: 2px solid #f0f0f0; padding: 12px; border-radius: 12px; background: #fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.03);">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; border-bottom: 2px solid #fff5f0; padding-bottom: 5px;">
+                    <span style="font-size: 24px;">${item.emoji}</span>
+                    <strong style="font-size: 16px; color: #e76115;">${item.animal}</strong>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">`;
+
+        item.years.forEach((year, yIdx) => {
+            // 날짜 시드와 연도 인덱스를 조합해 매일 다른 문구가 나오도록 계산
+            const fortuneIdx = (daySeed + yIdx + item.animal.length) % item.pool.length;
+            const fortuneText = item.pool[fortuneIdx];
+
+            cardHtml += `
+                <div style="display: flex; font-size: 12px; align-items: flex-start; gap: 5px;">
+                    <span style="background: #eee; padding: 1px 4px; border-radius: 3px; font-weight: bold; color: #555; white-space: nowrap;">${year}</span>
+                    <span style="color: #333; line-height: 1.4;">${fortuneText}</span>
+                </div>`;
+        });
+
+        cardHtml += `</div></div>`;
+        grid.innerHTML += cardHtml;
+    });
+
+    document.getElementById('zodiacModal').style.display = 'block';
+}
+
+function closeZodiac() { document.getElementById('zodiacModal').style.display = 'none'; }
 
 const tarotData = [
     { name: "0. 바보 (The Fool)", img: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg", desc: "새로운 시작과 모험의 기운이 있습니다. 두려워 말고 발걸음을 내디뎌 보세요!" },
@@ -234,17 +331,19 @@ document.addEventListener("DOMContentLoaded", () => {
         reservations = data ? Object.entries(data).map(([k,v]) => ({key:k, ...v})) : [];
         render();
     });
-/* --- NEW: 이름 감지 로직 (이동형, 노은영, 고주현 등) --- */
-    const luckyPeople = ["노은영", "고주현", "이동형", "홍은진"];
+    
+    const luckyPeople = ["노은영", "고주현", "이동형"]; // 특수 3인
     const nameInput = document.getElementById('resName');
-    const fBtn = document.getElementById('fortuneBtn');
+    const specialButtons = document.getElementById('specialButtons'); // 버튼 두개를 감싸는 div
 
     if (nameInput) {
         nameInput.addEventListener('input', function() {
-            if (luckyPeople.includes(this.value.trim())) {
-                fBtn.style.display = 'inline-block';
+            const val = this.value.trim();
+            // 홍은진님도 포함하시려면 조건에 추가 (예: luckyPeople.includes(val) || val === "홍은진")
+            if (luckyPeople.includes(val)) {
+                specialButtons.style.display = 'flex'; // flex로 설정해야 두 버튼이 나란히 보입니다
             } else {
-                fBtn.style.display = 'none';
+                specialButtons.style.display = 'none';
             }
         });
     }
