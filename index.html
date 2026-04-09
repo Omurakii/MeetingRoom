@@ -691,12 +691,12 @@ function initLadderGame() {
     const resultArea = document.getElementById('ladderResults');
     const ladderBoard = document.getElementById('ladderBoard');
     
-    // [중요] 기존 내용을 완전히 비움 (이게 있어야 인원 변경이 반영됨)
+    // [중요] 기존 내용을 완전히 비움 (인원 변경 반영의 핵심)
     inputArea.innerHTML = '';
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
 
-    // 부모 컨테이너의 너비를 초기화하여 가로 스크롤이 인원에 맞게 생기도록 설정
+    // 부모 컨테이너 스크롤 리셋
     if(ladderBoard) {
         ladderBoard.scrollLeft = 0;
     }
@@ -708,7 +708,8 @@ function initLadderGame() {
 
     // 인원수(n)만큼 루프를 돌며 요소 생성
     for (let i = 0; i < n; i++) {
-        // [상단] 이름 입력 영역 (각 칸의 너비를 고정하여 인원이 많아지면 옆으로 밀리게 함)
+        // [상단] 이름 입력 영역
+        // flex: 0 0 100px를 주어 인원이 많아져도 각 칸의 너비를 유지하며 옆으로 확장되게 합니다.
         const inputDiv = document.createElement('div');
         inputDiv.style.cssText = "text-align:center; flex: 0 0 100px; padding:0 5px;"; 
         inputDiv.innerHTML = `
@@ -751,35 +752,39 @@ function initLadderGame() {
     }
 }
 
-// 4. 시작 버튼 클릭
+// 4. 시작 버튼 클릭 (다리 생성 및 결과 공개)
 function startLadder(e, idx) {
     const n = parseInt(document.getElementById('memberCount').value);
     const lineArea = document.getElementById('ladderLines');
     
-    // 가로줄이 아직 생성되지 않았다면 최초 1회 생성
+    // 가로줄이 아직 생성되지 않았다면 최초 1회 전체 생성
     if (lineArea.querySelectorAll('.ladder-bridge').length === 0) {
         generateAllBridges(n);
     }
 
+    // 클릭한 버튼 비활성화
     const btn = e.target;
     btn.disabled = true;
     btn.innerText = "완료";
     btn.style.background = "#ccc";
     btn.style.cursor = "default";
 
+    // 결과 카드 뒤집기 애니메이션 실행
     const card = document.getElementById(`res-${idx}`);
     if(card) card.classList.add('flipped');
 }
 
-// 5. 가로줄 무작위 생성
+// 5. 가로줄(다리) 무작위 생성 로직
 function generateAllBridges(n) {
     for (let i = 0; i < n - 1; i++) {
         const col = document.getElementById(`ladder-col-${i}`);
+        // 기둥 사이당 다리 개수 (2~4개 랜덤)
         const bridgeCount = Math.floor(Math.random() * 3) + 2; 
         
         for (let j = 0; j < bridgeCount; j++) {
             const bridge = document.createElement('div');
             bridge.className = 'ladder-bridge';
+            // 다리 높이 위치 랜덤 (15% ~ 85% 사이)
             const topPos = Math.floor(Math.random() * 70) + 15; 
             
             bridge.style.cssText = `
