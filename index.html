@@ -626,13 +626,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- [NEW] 사다리타기 제어 함수 ---
 
+// 1. 설정창 열기
 function showLadderSetup() {
-    document.getElementById('ladderSetup').style.display = "block";
+    const setup = document.getElementById('ladderSetup');
+    setup.style.display = "block";
     // 설정창으로 부드럽게 스크롤
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
-// 2. 사다리 게임 초기화 및 생성
+// 2. 사다리 게임 초기화 (세로줄과 이름 입력창만 생성)
 function initLadderGame() {
     const n = parseInt(document.getElementById('memberCount').value);
     const m = parseInt(document.getElementById('bombCount').value);
@@ -651,45 +653,30 @@ function initLadderGame() {
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
 
+    // 결과 배열 미리 생성 (꽝/통과)
     let results = new Array(n).fill('통과');
     for (let i = 0; i < m; i++) results[i] = '꽝';
     results.sort(() => Math.random() - 0.5);
 
     for (let i = 0; i < n; i++) {
-        // [수정] onclick에 event를 인자로 전달
+        // 이름 입력창과 개별 시작 버튼
         inputArea.innerHTML += `
             <div style="text-align:center; flex:1;">
                 <input type="text" placeholder="이름" style="width:80%; text-align:center;"><br>
-                <button onclick="startLadder(event, ${i})" style="margin-top:5px; cursor:pointer; padding: 2px 8px; font-size:11px;">시작</button>
+                <button onclick="startLadder(event, ${i})" class="ladder-start-btn" style="margin-top:5px; cursor:pointer; padding: 2px 8px; font-size:11px;">시작</button>
             </div>`;
 
+        // 세로줄 생성 (처음엔 가로다리 없음)
         const col = document.createElement('div');
         col.className = 'ladder-col';
+        col.id = `ladder-col-${i}`;
         col.style.cssText = "flex: 1; position: relative; border-left: 2px solid #333; height: 200px;";
         
-        if (i < n - 1) {
-            const bridgeCount = Math.floor(Math.random() * 3) + 2; 
-            for (let j = 0; j < bridgeCount; j++) {
-                const bridge = document.createElement('div');
-                bridge.className = 'ladder-bridge';
-                const topPos = Math.floor(Math.random() * 70) + 15;
-                
-                bridge.style.cssText = `
-                    position: absolute;
-                    top: ${topPos}%;
-                    left: 0;
-                    width: 100%; /* 부모 flex-item 너비를 꽉 채우도록 수정 */
-                    height: 2px;
-                    background: #333;
-                `;
-                col.appendChild(bridge);
-            }
-        }
-        // 마지막 기둥은 오른쪽에 선이 하나 더 필요할 수 있으므로 보정
+        // 마지막 기둥 오른쪽 선 보정
         if (i === n - 1) col.style.borderRight = "2px solid #333";
-        
         lineArea.appendChild(col);
 
+        // 결과 카드 (뒤집히기 전)
         resultArea.innerHTML += `
             <div style="flex:1; display:flex; justify-content:center;">
                 <div class="tarot-card" id="res-${i}">
@@ -702,16 +689,48 @@ function initLadderGame() {
     }
 }
 
-// 3. [수정] 인자값으로 e(event) 추가
+// 3. 시작 버튼 클릭 시: 가로줄을 그어주고 결과 공개
 function startLadder(e, idx) {
+    const n = parseInt(document.getElementById('memberCount').value);
+    const lineArea = document.getElementById('ladderLines');
+    
+    // [중요] 아직 가로줄이 하나도 없다면, 첫 시작 버튼을 눌렀을 때 전체 가로줄 생성
+    if (lineArea.querySelectorAll('.ladder-bridge').length === 0) {
+        generateAllBridges(n);
+    }
+
+    // 버튼 비활성화 및 카드 뒤집기
     const btn = e.target;
     btn.disabled = true;
     btn.innerText = "OK";
     btn.style.background = "#ccc";
 
-    // 실제 사다리 경로 추적 로직이 없다면, 현재는 그냥 해당 인덱스 결과만 보여줌
     const card = document.getElementById(`res-${idx}`);
     if(card) card.classList.add('flipped');
+}
+
+// 4. 가로줄(다리) 무작위 생성 로직 분리
+function generateAllBridges(n) {
+    for (let i = 0; i < n - 1; i++) {
+        const col = document.getElementById(`ladder-col-${i}`);
+        const bridgeCount = Math.floor(Math.random() * 3) + 2; // 줄 사이당 2~4개
+        
+        for (let j = 0; j < bridgeCount; j++) {
+            const bridge = document.createElement('div');
+            bridge.className = 'ladder-bridge';
+            const topPos = Math.floor(Math.random() * 70) + 15; // 15%~85% 사이 랜덤 높이
+            
+            bridge.style.cssText = `
+                position: absolute;
+                top: ${topPos}%;
+                left: 0;
+                width: 100%; 
+                height: 2px;
+                background: #333;
+            `;
+            col.appendChild(bridge);
+        }
+    }
 }
 
 /* --- NEW: 타로 관련 함수 --- */
