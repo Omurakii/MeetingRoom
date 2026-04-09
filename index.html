@@ -190,16 +190,12 @@
     <button onclick="addRes()">예약하기</button>
   </div>
 
-  <button id="ladderTrigger" style="display:none; width: 100%; margin-top: 10px; background:#4a90e2;" onclick="showLadderSetup()">사다리 설정 열기</button>
   <div id="ladderSetup" style="display:none; margin-top: 10px; border: 2px dashed var(--primary); padding: 10px; border-radius: 8px; background: #fff5f0; font-size: 12px;">
       <h4 style="margin: 0 0 10px; text-align: center;">📊 사다리 설정</h4>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <label>인원(2-9):</label>
-          <input type="number" id="memberCount" min="2" max="9" value="3" style="width: 40px;">
-          <label>꽝:</label>
-          <input type="number" id="bombCount" min="1" max="8" value="1" style="width: 40px;">
+      <div style="text-align: center; color: #666; margin-bottom: 10px;">
+          설정은 사다리 게임창 내에서 변경 가능합니다.
       </div>
-      <button onclick="initLadderGame()" style="width: 100%; font-size: 11px;">게임판 생성</button>
+      <button onclick="showLadderSetup()" style="width: 100%; font-size: 11px; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">사다리 게임 시작하기</button>
   </div>
     
   <hr style="border:0; border-top:1px solid #eee; margin: 5px 0;">
