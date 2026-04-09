@@ -641,10 +641,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // 1. 사다리 팝업 열기
 function showLadderSetup() {
-    // 게임판을 초기화(기둥 생성)한 뒤 팝업을 띄웁니다.
+    // 1. 데이터를 먼저 생성 (이게 먼저 실행되어야 이름 칸이 생깁니다)
     initLadderGame(); 
+    
+    // 2. 그 다음 팝업을 보여줌
     const modal = document.getElementById('ladderModal');
-    if(modal) modal.style.display = "block";
+    if (modal) {
+        modal.style.display = "block";
+    }
 }
 
 // 2. 사다리 팝업 닫기
