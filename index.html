@@ -1115,6 +1115,25 @@ function closeGame() {
     const modal = document.getElementById('gameModal');
     if (modal) modal.style.display = 'none';
 }
-</script>
-</body>
+async function loadData() {
+    db.ref('reservations').on('value', (snapshot) => {
+        const data = snapshot.val();
+        reservations = []; 
+        if (data) {
+            Object.entries(data).forEach(([key, val]) => {
+                reservations.push({ key, ...val });
+            });
+        }
+        render(); 
+    });
+}
+
+// 브라우저가 모든 화면과 스크립트를 로드한 후 실행할 시작점
+window.onload = () => {
+    goToday();         // 1. 오늘 날짜로 세팅
+    loadData();        // 2. 데이터 불러오기 및 그리기 시작
+    cleanupOldData();  // 3. (선택) 오래된 데이터 자동 삭제
+};
+
+</script> </body>
 </html>
