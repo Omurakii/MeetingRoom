@@ -101,7 +101,7 @@
     
 /* --- 사다리로 추가된 내용--- */
     .ladder-col { position: relative; width: 4px; height: 100%; background-color: #555; }
-    .ladder-bridge { position: absolute; height: 4px; background-color: #555; z-index: 1; }
+    .ladder-bridge { position: absolute; height: 4px; width: 100%; background-color: #555; z-index: 1; }
 
 /* --- NEW: 타로 카드 스타일 --- */
     .tarot-card { width: 60px; height: 100px; perspective: 1000px; cursor: pointer; }
@@ -190,7 +190,6 @@
     <button onclick="addRes()">예약하기</button>
   </div>
 
-/* 사다리 추가된 내용 */
   <div id="ladderSetup" style="display:none; margin-top: 10px; border: 2px dashed var(--primary); padding: 10px; border-radius: 8px; background: #fff5f0; font-size: 12px;">
       <h4 style="margin: 0 0 10px; text-align: center;">📊 사다리 설정</h4>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -201,7 +200,6 @@
       </div>
       <button onclick="initLadderGame()" style="width: 100%; font-size: 11px;">게임판 생성</button>
   </div>
-/* 사다리 추가된 내용 */
     
   <hr style="border:0; border-top:1px solid #eee; margin: 5px 0;">
   <h4 style="margin: 0 0 10px; font-size:13px;">오늘의 <span id="subRoom"></span> 현황</h4>
@@ -652,26 +650,22 @@ function initLadderGame() {
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
 
-    // 결과 섞기 (꽝 vs 통과)
     let results = new Array(n).fill('통과');
     for (let i = 0; i < m; i++) results[i] = '꽝';
     results.sort(() => Math.random() - 0.5);
 
-    // 요소 생성
     for (let i = 0; i < n; i++) {
-        // 상단 입력칸 & 시작 버튼
+        // [수정] onclick에 event를 인자로 전달
         inputArea.innerHTML += `
             <div style="text-align:center; flex:1;">
                 <input type="text" placeholder="이름" style="width:80%; text-align:center;"><br>
-                <button onclick="startLadder(${i})" style="margin-top:5px; cursor:pointer; padding: 2px 8px; font-size:11px;">시작</button>
+                <button onclick="startLadder(event, ${i})" style="margin-top:5px; cursor:pointer; padding: 2px 8px; font-size:11px;">시작</button>
             </div>`;
 
-        // 세로선 기둥
         const col = document.createElement('div');
         col.className = 'ladder-col';
-        col.style.flex = "1"; // 균등 배분을 위해 추가
+        col.style.cssText = "flex: 1; position: relative; border-left: 2px solid #333; height: 200px;";
         
-        // 가로다리 생성 (마지막 기둥 전까지만)
         if (i < n - 1) {
             const bridgeCount = Math.floor(Math.random() * 3) + 2; 
             for (let j = 0; j < bridgeCount; j++) {
@@ -679,17 +673,22 @@ function initLadderGame() {
                 bridge.className = 'ladder-bridge';
                 const topPos = Math.floor(Math.random() * 70) + 15;
                 
-                bridge.style.top = topPos + "%";
-                // 기둥 간격 계산 (컨테이너 너비를 기둥 개수로 나눔)
-                const bridgeWidth = lineArea.clientWidth / n;
-                bridge.style.width = bridgeWidth + "px"; 
-                bridge.style.left = "2px";
+                bridge.style.cssText = `
+                    position: absolute;
+                    top: ${topPos}%;
+                    left: 0;
+                    width: 100%; /* 부모 flex-item 너비를 꽉 채우도록 수정 */
+                    height: 2px;
+                    background: #333;
+                `;
                 col.appendChild(bridge);
             }
         }
+        // 마지막 기둥은 오른쪽에 선이 하나 더 필요할 수 있으므로 보정
+        if (i === n - 1) col.style.borderRight = "2px solid #333";
+        
         lineArea.appendChild(col);
 
-        // 하단 결과 카드 (기존 타로 스타일 클래스 사용)
         resultArea.innerHTML += `
             <div style="flex:1; display:flex; justify-content:center;">
                 <div class="tarot-card" id="res-${i}">
@@ -702,14 +701,14 @@ function initLadderGame() {
     }
 }
 
-// 3. 사다리 시작 버튼 클릭 시
-function startLadder(idx) {
-    const btn = event.target;
+// 3. [수정] 인자값으로 e(event) 추가
+function startLadder(e, idx) {
+    const btn = e.target;
     btn.disabled = true;
     btn.innerText = "OK";
     btn.style.background = "#ccc";
 
-    // 타로 카드 뒤집기 애니메이션 실행
+    // 실제 사다리 경로 추적 로직이 없다면, 현재는 그냥 해당 인덱스 결과만 보여줌
     const card = document.getElementById(`res-${idx}`);
     if(card) card.classList.add('flipped');
 }
