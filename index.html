@@ -677,6 +677,9 @@ function initLadderGame() {
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
 
+    // [중요] 스크롤을 왼쪽 끝으로 리셋 (이전 게임 흔적 제거)
+    if(ladderBoard) ladderBoard.scrollLeft = 0;
+
     // 결과 데이터 생성 (꽝/통과 셔플)
     let results = new Array(n).fill('통과');
     for (let i = 0; i < m; i++) results[i] = '꽝';
