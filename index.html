@@ -1115,25 +1115,32 @@ function closeGame() {
     const modal = document.getElementById('gameModal');
     if (modal) modal.style.display = 'none';
 }
-async function loadData() {
-    db.ref('reservations').on('value', (snapshot) => {
-        const data = snapshot.val();
-        reservations = []; 
-        if (data) {
-            Object.entries(data).forEach(([key, val]) => {
-                reservations.push({ key, ...val });
-            });
-        }
-        render(); 
-    });
-}
-
 // 브라우저가 모든 화면과 스크립트를 로드한 후 실행할 시작점
 window.onload = () => {
-    goToday();         // 1. 오늘 날짜로 세팅
-    loadData();        // 2. 데이터 불러오기 및 그리기 시작
-    cleanupOldData();  // 3. (선택) 오래된 데이터 자동 삭제
+    // 1. 시작 시간(startT)에 08:30, 09:00 같은 선택지들을 먼저 넣어줍니다.
+    initStartT(); 
+    
+    // 2. 오늘 날짜 세팅 및 종료 시간 동기화
+    goToday();         
+    syncEndTime();     
+    
+    // 3. 데이터 불러오기 및 정리
+    loadData();        
+    cleanupOldData();  
 };
 
+// 시작 시간 선택지를 만들어주는 보조 함수 (없다면 추가하세요)
+function initStartT() {
+    const startSel = document.getElementById('startT');
+    if (!startSel) return;
+    startSel.innerHTML = '';
+    // SLOTS의 마지막 시간(18:00)을 제외한 나머지를 시작 시간으로 설정
+    SLOTS.slice(0, -1).forEach(t => {
+        let opt = document.createElement('option');
+        opt.value = t;
+        opt.innerText = t;
+        startSel.appendChild(opt);
+    });
+}
 </script> </body>
 </html>
