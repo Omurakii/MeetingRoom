@@ -626,21 +626,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // 1. "사다리"라고 입력했을 때
             if (val === "사다리") {
-                // 사다리 실행 버튼만 보여주고, 타로/띠별운세는 숨김
-                if (ladderTrigger) ladderTrigger.style.display = 'inline-block';
+                // 사다리 설정창(버튼 포함)을 보여주고, 타로/띠별운세는 숨김
+                if (ladderSetup) ladderSetup.style.display = 'block'; 
+                if (ladderTrigger) ladderTrigger.style.display = 'none'; // 트리거 버튼은 숨기거나 필요시 사용
                 specialButtons.style.display = 'none';
             } 
             // 2. 기존 특수 인원(노은영, 고주현, 이동형) 입력 시
             else if (["노은영", "고주현", "이동형"].includes(val)) {
                 specialButtons.style.display = 'flex';
                 if (ladderTrigger) ladderTrigger.style.display = 'none';
-                if (ladderSetup) ladderSetup.style.display = 'none'; // 사다리 설정창도 숨김
+                if (ladderSetup) ladderSetup.style.display = 'none'; // 사다리 설정창 숨김
             } 
             // 3. 그 외 일반 이름일 때
             else {
                 specialButtons.style.display = 'none';
                 if (ladderTrigger) ladderTrigger.style.display = 'none';
-                if (ladderSetup) ladderSetup.style.display = 'none';
+                if (ladderSetup) ladderSetup.style.display = 'none'; // 사다리 설정창 숨김
             }
         });
     }
