@@ -275,6 +275,21 @@
     </div>
 </div>
 
+<div id="ladderModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:4000;">
+    <div style="position:relative; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:800px; background:white; padding:25px; border-radius:15px; display:flex; flex-direction:column; max-height: 90vh;">
+        <h2 style="text-align:center; color:var(--primary); margin-top:0;">🚩 점심 내기 사다리</h2>
+        <p style="text-align:center; font-size:12px; color:#666; margin-top:-10px;">이름을 입력하고 시작 버튼을 눌러주세요!</p>
+
+        <div id="ladderBoard" style="flex:1; overflow-x: auto; padding: 20px 10px; background: white; border: 1px solid #eee; border-radius: 10px;">
+            <div id="ladderInputs" style="display:flex; justify-content:space-around; margin-bottom: 10px; min-width: 600px;"></div>
+            <div id="ladderLines" style="display:flex; justify-content:space-around; height:250px; background: white; position:relative; min-width: 600px; border-top: 1px solid #eee; border-bottom: 1px solid #eee;"></div>
+            <div id="ladderResults" style="display:flex; justify-content:space-around; margin-top: 15px; min-width: 600px;"></div>
+        </div>
+
+        <button onclick="closeLadder()" style="margin-top:20px; width:100%; padding:12px; background:#666; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">닫기</button>
+    </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -624,21 +639,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// --- [NEW] 사다리타기 제어 함수 ---
-
-// 1. 설정창 열기
+// 1. 사다리 팝업 열기
 function showLadderSetup() {
-    const setup = document.getElementById('ladderSetup');
-    setup.style.display = "block";
-    // 설정창으로 부드럽게 스크롤
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    // 게임판을 초기화(기둥 생성)한 뒤 팝업을 띄웁니다.
+    initLadderGame(); 
+    const modal = document.getElementById('ladderModal');
+    if(modal) modal.style.display = "block";
 }
 
-// 2. 사다리 게임 초기화 (세로줄과 이름 입력창만 생성)
+// 2. 사다리 팝업 닫기
+function closeLadder() {
+    const modal = document.getElementById('ladderModal');
+    if(modal) modal.style.display = "none";
+}
+
+// 3. 사다리 게임 초기화 (기둥 & 이름칸 생성)
 function initLadderGame() {
     const n = parseInt(document.getElementById('memberCount').value);
     const m = parseInt(document.getElementById('bombCount').value);
 
+    // 유효성 검사
     if (n < 2 || n > 9 || m >= n || m < 1) {
         alert("인원(2~9명)과 꽝 개수(인원보다 적게)를 다시 확인해주세요.");
         return;
@@ -648,91 +668,94 @@ function initLadderGame() {
     const lineArea = document.getElementById('ladderLines');
     const resultArea = document.getElementById('ladderResults');
     
-    document.getElementById('ladderBoard').style.display = "block";
+    // 기존 내용 삭제
     inputArea.innerHTML = '';
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
 
-    // 결과 배열 미리 생성 (꽝/통과)
+    // 결과 데이터 생성 (꽝/통과 셔플)
     let results = new Array(n).fill('통과');
     for (let i = 0; i < m; i++) results[i] = '꽝';
     results.sort(() => Math.random() - 0.5);
 
     for (let i = 0; i < n; i++) {
-        // 이름 입력창과 개별 시작 버튼
+        // [상단] 이름 입력 및 시작 버튼
         inputArea.innerHTML += `
             <div style="text-align:center; flex:1;">
-                <input type="text" placeholder="이름" style="width:80%; text-align:center;"><br>
-                <button onclick="startLadder(event, ${i})" class="ladder-start-btn" style="margin-top:5px; cursor:pointer; padding: 2px 8px; font-size:11px;">시작</button>
+                <input type="text" placeholder="이름" style="width:70px; text-align:center; border:1px solid #ddd; padding:5px; border-radius:4px; font-size:12px;"><br>
+                <button onclick="startLadder(event, ${i})" style="margin-top:5px; cursor:pointer; padding: 3px 10px; font-size:11px; background:var(--primary); color:white; border:none; border-radius:3px; font-weight:bold;">시작</button>
             </div>`;
 
-        // 세로줄 생성 (처음엔 가로다리 없음)
+        // [중앙] 세로 기둥 생성
         const col = document.createElement('div');
         col.className = 'ladder-col';
         col.id = `ladder-col-${i}`;
-        col.style.cssText = "flex: 1; position: relative; border-left: 2px solid #333; height: 200px;";
+        col.style.cssText = "flex: 1; position: relative; border-left: 1px solid #ddd; height: 250px;";
         
-        // 마지막 기둥 오른쪽 선 보정
-        if (i === n - 1) col.style.borderRight = "2px solid #333";
+        // 마지막 기둥 오른쪽 테두리 추가
+        if (i === n - 1) col.style.borderRight = "1px solid #ddd";
         lineArea.appendChild(col);
 
-        // 결과 카드 (뒤집히기 전)
+        // [하단] 결과 카드 (타로 스타일)
         resultArea.innerHTML += `
             <div style="flex:1; display:flex; justify-content:center;">
                 <div class="tarot-card" id="res-${i}">
                     <div class="tarot-inner">
                         <div class="tarot-back">?</div>
-                        <div class="tarot-front">${results[i]}</div>
+                        <div class="tarot-front" style="font-size:14px; font-weight:bold; color:var(--primary);">${results[i]}</div>
                     </div>
                 </div>
             </div>`;
     }
 }
 
-// 3. 시작 버튼 클릭 시: 가로줄을 그어주고 결과 공개
+// 4. 시작 버튼 클릭 (다리 생성 및 결과 공개)
 function startLadder(e, idx) {
     const n = parseInt(document.getElementById('memberCount').value);
     const lineArea = document.getElementById('ladderLines');
     
-    // [중요] 아직 가로줄이 하나도 없다면, 첫 시작 버튼을 눌렀을 때 전체 가로줄 생성
+    // 아직 가로줄이 하나도 없다면 전체 생성 (공정성 유지)
     if (lineArea.querySelectorAll('.ladder-bridge').length === 0) {
         generateAllBridges(n);
     }
 
-    // 버튼 비활성화 및 카드 뒤집기
+    // 버튼 상태 변경
     const btn = e.target;
     btn.disabled = true;
-    btn.innerText = "OK";
+    btn.innerText = "완료";
     btn.style.background = "#ccc";
+    btn.style.cursor = "default";
 
+    // 카드 뒤집기 애니메이션 실행
     const card = document.getElementById(`res-${idx}`);
     if(card) card.classList.add('flipped');
 }
 
-// 4. 가로줄(다리) 무작위 생성 로직 분리
+// 5. 가로줄(다리) 무작위 생성 로직
 function generateAllBridges(n) {
     for (let i = 0; i < n - 1; i++) {
         const col = document.getElementById(`ladder-col-${i}`);
-        const bridgeCount = Math.floor(Math.random() * 3) + 2; // 줄 사이당 2~4개
+        const bridgeCount = Math.floor(Math.random() * 3) + 2; // 사이마다 2~4개 랜덤
         
         for (let j = 0; j < bridgeCount; j++) {
             const bridge = document.createElement('div');
             bridge.className = 'ladder-bridge';
-            const topPos = Math.floor(Math.random() * 70) + 15; // 15%~85% 사이 랜덤 높이
+            // 너무 위나 아래에 쏠리지 않도록 15%~85% 사이 배치
+            const topPos = Math.floor(Math.random() * 70) + 15; 
             
             bridge.style.cssText = `
                 position: absolute;
                 top: ${topPos}%;
                 left: 0;
                 width: 100%; 
-                height: 2px;
-                background: #333;
+                height: 1px;
+                background: #bbb;
+                z-index: 1;
             `;
             col.appendChild(bridge);
         }
     }
 }
-
 /* --- NEW: 타로 관련 함수 --- */
 function showFortune() {
     const container = document.getElementById('cardContainer');
