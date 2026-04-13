@@ -1283,13 +1283,20 @@ function closeGame() {
     if (modal) modal.style.display = 'none';
 }
 
-// 1. 날씨 팝업 열기
-async function openWeatherModal() {
-    document.getElementById('weatherModal').style.display = 'block';
+// 2. 날씨 표시 함수 (HTML의 onclick="showTodayWeather()"와 이름을 맞춤)
+async function showTodayWeather() {
+    // HTML에 선언된 ID인 'weatherInfo'를 가져와야 합니다.
+    const weatherInfoDiv = document.getElementById('weatherInfo');
     const weatherListDiv = document.getElementById('weatherList');
     
-    // 로딩 표시
+    // 토글 기능
+    if (weatherInfoDiv.style.display === 'block') {
+        weatherInfoDiv.style.display = 'none';
+        return;
+    }
+
     weatherListDiv.innerHTML = '<div style="grid-column: span 4; font-size:12px; padding: 20px;">날씨 데이터를 가져오는 중...</div>';
+    weatherInfoDiv.style.display = 'block';
 
     try {
         const serviceKey = 'c832c8aadcd6effb30c9f15849602d3228c5026dbbf0e33c42b844c3ffafc10c'; 
@@ -1303,7 +1310,10 @@ async function openWeatherModal() {
         const response = await fetch(url);
         const data = await response.json();
 
-        if (data.response.header.resultCode !== '00') throw new Error();
+        // 에러 핸들링 보강
+        if (!data.response || data.response.header.resultCode !== '00') {
+             throw new Error("API 호출 실패");
+        }
 
         const items = data.response.body.items.item;
         const weatherByTime = {};
@@ -1334,13 +1344,14 @@ async function openWeatherModal() {
                     <div style="padding: 10px 5px; border: 1px solid #eee; border-radius: 8px; background: white;">
                         <div style="font-size: 10px; color: #999;">${hourKey}</div>
                         <div style="font-size: 20px; margin: 5px 0;">${icon}</div>
-                        <div style="font-weight: bold;">${w.temp}°</div>
+                        <div style="font-weight: bold; font-size: 11px;">${w.temp}°</div>
                     </div>`;
             }
         }
-        weatherListDiv.innerHTML = html || '데이터가 없습니다.';
+        weatherListDiv.innerHTML = html || '<div style="grid-column: span 4;">데이터가 없습니다.</div>';
     } catch (e) {
-        weatherListDiv.innerHTML = '<div style="grid-column: span 4; color: red;">날씨 정보를 가져오지 못했습니다.</div>';
+        console.error(e);
+        weatherListDiv.innerHTML = '<div style="grid-column: span 4; color: red; font-size: 10px;">날씨 정보를 가져오지 못했습니다.</div>';
     }
 }
 
