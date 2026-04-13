@@ -929,12 +929,34 @@ function setView(mode) {
 }
 
 function render() {
-    const rName = ROOMS[roomIdx];
-    document.getElementById('roomName').innerText = rName;
-    document.getElementById('subRoom').innerText = rName;
+    const room = ROOMS[roomIdx]; // 현재 선택된 회의실 객체
+    const rName = room.name;      // "Fresh" 같은 실제 이름 문자열
+    const rDesc = room.desc;      // "(복사실 안)" 같은 설명 문자열
+
+    // 상단 선택기: 이름과 설명을 두 줄로 표시 (innerHTML 사용)
+    const roomNameElem = document.getElementById('roomName');
+    if (roomNameElem) {
+        roomNameElem.innerHTML = `
+            ${rName}
+            <div style="font-size: 11px; color: #888; font-weight: normal; margin-top: 2px;">
+                ${rDesc}
+            </div>
+        `;
+    }
+
+    // 하단 "오늘의 [이름] 현황" 업데이트
+    const subRoomElem = document.getElementById('subRoom');
+    if (subRoomElem) {
+        subRoomElem.innerText = rName; // 여기는 이름만 나오게 함
+    }
+
+    // 나머지 렌더링 함수들 호출 (이름 문자열인 rName을 전달)
     renderToday(rName);
-    if(viewMode === 'week') renderWeek(rName);
-    else renderMonth(rName);
+    if (viewMode === 'week') {
+        renderWeek(rName);
+    } else {
+        renderMonth(rName);
+    }
 }
 
 function renderToday(room) {
