@@ -1436,44 +1436,40 @@ function closeWeatherModal() {
 let currentMode = "ladder"; 
 
 function showSubwayEasterEgg() {
+    currentMode = "subway"; // 모드 전환
+    
     const modal = document.getElementById('ladderModal');
     const inputArea = document.getElementById('ladderInputs');
     const lineArea = document.getElementById('ladderLines');
     const resultArea = document.getElementById('ladderResults');
     const ladderSetup = document.getElementById('ladderSetup');
 
-    // [강력 조치] 상단 사다리 설정창을 CSS 레벨에서 강제로 제거
+    // [강력 조치] 상단 사다리 설정창 강제 제거
     if (ladderSetup) {
         ladderSetup.setAttribute('style', 'display: none !important;');
     }
 
-    // 제목 영역 (기존 내용 덮어쓰기)
+    // 제목 영역 덮어쓰기
     inputArea.innerHTML = `
         <div style="padding:15px; text-align:center; background:#f8f9fa; border-radius:10px 10px 0 0; border-bottom:1px solid #eee;">
             <div style="font-size: 30px; margin-bottom: 5px;">🚇</div>
             <h2 style="margin:0; font-size:18px; color:#e76115;">지하철 빠른길 찾기</h2>
-            <p style="margin:5px 0 0; font-size:12px; color:#888;">입력하신 역으로 즉시 조회를 시도합니다.</p>
+            <p style="margin:5px 0 0; font-size:12px; color:#888;">입력하신 역으로 카카오맵에서 즉시 조회합니다.</p>
         </div>
     `;
 
-    // 입력 및 화살표 영역
+    // 입력칸 및 화살표
     lineArea.style.display = "block"; 
     lineArea.style.height = "auto";
     lineArea.innerHTML = `
         <div style="padding:20px; display:flex; flex-direction:column; gap:12px; box-sizing:border-box;">
-            <div style="text-align:left;">
-                <label style="display:block; font-size:11px; font-weight:bold; color:#e76115; margin-bottom:5px;">출발역</label>
-                <input type="text" id="st_start" placeholder="예: 안국" 
-                       style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
-            </div>
+            <input type="text" id="st_start" placeholder="출발역 (예: 안국)" 
+                   style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
             <div style="text-align:center; cursor:pointer;" onclick="swapStations()">
-                <span style="color:#e76115; font-size:22px; font-weight:bold; border:1px solid #eee; padding:2px 12px; border-radius:20px; background:#fff;">⇅</span>
+                <span style="color:#e76115; font-size:22px;">⇅</span>
             </div>
-            <div style="text-align:left;">
-                <label style="display:block; font-size:11px; font-weight:bold; color:#e76115; margin-bottom:5px;">도착역</label>
-                <input type="text" id="st_end" placeholder="예: 판교" 
-                       style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
-            </div>
+            <input type="text" id="st_end" placeholder="도착역 (예: 판교)" 
+                   style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
         </div>
     `;
 
@@ -1482,7 +1478,7 @@ function showSubwayEasterEgg() {
         <div style="padding:10px 20px 20px; width:100%; box-sizing:border-box;">
             <button onclick="goSubwayLink()" 
                     style="width:100%; padding:15px; background:#e76115; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer;">
-                카카오맵으로 경로 조회
+                조회 결과 바로보기 (새 창)
             </button>
         </div>
     `;
