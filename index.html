@@ -880,27 +880,32 @@ async function addRes() {
     const startIdx = SLOTS.indexOf(document.getElementById('startT').value);
     const endIdx = SLOTS.indexOf(document.getElementById('endT').value);
     const targetSlots = SLOTS.slice(startIdx, endIdx);
-    const room = ROOMS[roomIdx];
+
+    // [중요 수정] ROOMS[roomIdx]는 이제 객체이므로 .name을 붙여서 문자열로 가져와야 합니다.
+    const room = ROOMS[roomIdx].name; 
 
     // 4. 중복 체크
     for(let t of targetSlots) { 
+        // 여기서도 r.room(문자열)과 room(문자열)을 비교하게 되어 정상 작동합니다.
         if(reservations.find(r => r.date === date && r.time === t && r.room === room)) 
             return alert("이미 중복된 예약이 있습니다."); 
     }
 
+    // 이스터에그 알림창들
     if (name === "서동호") alert("동호 출근했니");
     else if (name === "김연오") alert("큰일났어요");
     else if (name === "전은정") alert("부문장님! 화이팅입니다!");
     else if (name === "서원호") alert("부문장님! 화이팅입니다!");
 
-    
+    // 데이터 전송 객체 생성 (room은 이제 "Fresh" 같은 문자열입니다)
     const resPayload = { room, date, targetSlots, name, pw, gid: Date.now() };
 
+    // 홍은진님 전용 지뢰찾기 게임 로직
     if (name === "홍은진") {
         tempResData = resPayload; 
         initMinesweeper(); 
         document.getElementById('gameModal').style.display = 'block'; 
-        return; // 
+        return; 
     }
 
     // 일반 사용자: 바로 저장
