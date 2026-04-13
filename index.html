@@ -235,28 +235,31 @@
 </div>
 
 <div class="right">
-  <div class="view-tabs">
-    <div id="specialButtons" style="display: none; margin-right: auto; gap: 5px;">
-        <button id="fortuneBtn" onclick="showFortune()" style="background: #ffd700; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🔮 타로보기</button>
-        <button id="zodiacBtn" onclick="showZodiac()" style="background: #ffecb3; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">🐾 띠별운세</button>
+  <div class="view-tabs" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; width: 100%;">
+    
+    <div id="specialButtons" style="display: none; gap: 5px;">
+        <button id="fortuneBtn" onclick="showFortune()" style="background: #ffd700; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px;">🔮 타로보기</button>
+        <button id="zodiacBtn" onclick="showZodiac()" style="background: #ffecb3; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px;">🐾 띠별운세</button>
     </div>
-    <button id="btnWeek" class="active" onclick="setView('week')">주간</button>
-    <button id="btnMonth" onclick="setView('month')">월간</button>
+    
+    <div style="display: flex; gap: 5px; margin-left: auto;">
+        <button id="btnWeek" class="active" onclick="setView('week')" style="font-size: 12px;">주간</button>
+        <button id="btnMonth" onclick="setView('month')" style="font-size: 12px;">월간</button>
+    </div>
   </div>
 
-<div class="view-controls">
-    <button id="btnWeek" onclick="setView('week')">주간</button>
-    <button id="btnMonth" onclick="setView('month')">월간</button>
-</div>
-    
   <div class="week-nav" style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:10px;">
-    <button style="background:#555" onclick="goToday()">오늘</button>
-    <button onclick="changeDate(-1)">◀ 이전</button>
+    <button style="background:#555; font-size: 12px;" onclick="goToday()">오늘</button>
+    <button onclick="changeDate(-1)" style="font-size: 12px;">◀ 이전</button>
     <h3 id="currentViewRange" style="margin:0; font-size:16px; min-width:180px; text-align:center;"></h3>
-    <button onclick="changeDate(1)">다음 ▶</button>
+    <button onclick="changeDate(1)" style="font-size: 12px;">다음 ▶</button>
   </div>
-  <div id="weekView" class="scroll-area"><table id="weekTable"></table></div>
-  <div id="monthContainer">
+
+  <div id="weekView" class="scroll-area">
+    <table id="weekTable"></table>
+  </div>
+  
+  <div id="monthContainer" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
       <div class="month-header-wrapper">
           <div class="month-header">
               <div style="color:red;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color:blue;">토</div>
