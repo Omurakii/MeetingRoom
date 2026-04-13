@@ -197,13 +197,18 @@
   </div>
 
   <div id="weatherInfo" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-      <div style="background-color: white; margin: 20% auto; padding: 20px; border-radius: 12px; width: 85%; max-width: 350px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+      <div style="background-color: white; margin: 15% auto; padding: 20px; border-radius: 12px; width: 90%; max-width: 380px; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
         
           <span onclick="document.getElementById('weatherInfo').style.display='none'" style="position: absolute; right: 15px; top: 10px; font-size: 22px; cursor: pointer; color: #999;">&times;</span>
         
-          <h3 style="margin: 0 0 15px; font-size: 15px; text-align: center;">오늘의 날씨 🌤️</h3>
+          <h3 style="margin: 0 0 10px; font-size: 15px; text-align: center;">향후 3일간 날씨 📅</h3>
 
-          <div id="weatherList" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center;"></div>
+          <div id="weekList" style="display: flex; justify-content: space-around; gap: 4px; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+              </div>
+
+          <h4 id="currentFullDate" style="margin: 0 0 10px; font-size: 13px; color: #339af0; text-align:center;"></h4>
+        
+          <div id="weatherList" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center;"></div>
         
           <div style="margin-top: 15px; padding-top: 5px; border-top: 1px dotted #ccc; font-size: 9px; color: #999; text-align: center;">
               출처: 기상청 (공공데이터포털)
@@ -1294,64 +1299,99 @@ function closeGame() {
 async function showTodayWeather() {
     const weatherInfoDiv = document.getElementById('weatherInfo');
     const weatherListDiv = document.getElementById('weatherList');
+    const weekListDiv = document.getElementById('weekList');
+    const dateTitle = document.getElementById('currentFullDate');
     
-    // 팝업창(weatherInfo)을 화면에 띄움
-    weatherListDiv.innerHTML = '<div style="grid-column: span 4; font-size:11px; padding: 10px;">로딩 중...</div>';
+    weatherListDiv.innerHTML = '<div style="grid-column: span 4; font-size:11px; padding: 10px;">데이터 로드 중...</div>';
     weatherInfoDiv.style.display = 'block';
 
     try {
         const serviceKey = 'c832c8aadcd6effb30c9f15849602d3228c5026dbbf0e33c42b844c3ffafc10c'; 
         const now = new Date();
+        
+        // --- 하단 제목 날짜 및 요일 업데이트 ---
+        const dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+        const fullDateString = `오늘의 날씨 (${now.getMonth() + 1}월 ${now.getDate()}일 ${dayNames[now.getDay()]})`;
+        dateTitle.innerText = fullDateString;
+
         const baseDate = getDS(now).replace(/-/g, ''); 
         const baseTime = '0200'; 
-        const nx = 60; const ny = 127;
 
-        const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${serviceKey}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
+        const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${serviceKey}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=60&ny=127`;
 
         const response = await fetch(url);
         const data = await response.json();
-
-        if (!data.response || data.response.header.resultCode !== '00') throw new Error();
-
         const items = data.response.body.items.item;
-        const weatherByTime = {};
+
+        const dayWeather = {}; // 날짜별 요약
+        const timeWeather = {}; // 오늘 시간대별
 
         items.forEach(item => {
+            // 오늘 시간대별 데이터 (06시~21시)
             if (item.fcstDate === baseDate) {
                 const hour = item.fcstTime.substring(0, 2) + '시';
-                if (!weatherByTime[hour]) weatherByTime[hour] = {};
-                if (item.category === 'TMP') weatherByTime[hour].temp = item.fcstValue;
-                if (item.category === 'SKY') weatherByTime[hour].sky = item.fcstValue;
-                if (item.category === 'PTY') weatherByTime[hour].pty = item.fcstValue;
+                if (!timeWeather[hour]) timeWeather[hour] = {};
+                if (item.category === 'TMP') timeWeather[hour].temp = item.fcstValue;
+                if (item.category === 'SKY') timeWeather[hour].sky = item.fcstValue;
+                if (item.category === 'PTY') timeWeather[hour].pty = item.fcstValue;
+            }
+
+            // 향후 3일 데이터 요약 (낮 12시 기온 기준)
+            if (item.fcstTime === '1200') {
+                if (!dayWeather[item.fcstDate]) dayWeather[item.fcstDate] = {};
+                if (item.category === 'TMP') dayWeather[item.fcstDate].temp = item.fcstValue;
+                if (item.category === 'SKY') dayWeather[item.fcstDate].sky = item.fcstValue;
+                if (item.category === 'PTY') dayWeather[item.fcstDate].pty = item.fcstValue;
             }
         });
 
-        let html = '';
+        // --- 상단 3일간 날씨 HTML (오늘이 가장 왼쪽) ---
+        let weekHtml = '';
+        const sortedDates = Object.keys(dayWeather).sort(); // 날짜순 정렬
+        
+        sortedDates.slice(0, 3).forEach((dateStr, index) => {
+            const d = new Date(dateStr.substring(0,4), dateStr.substring(4,6)-1, dateStr.substring(6,8));
+            const dayLabel = (index === 0) ? "오늘" : dayNames[d.getDay()].replace('요일','');
+            const w = dayWeather[dateStr];
+            
+            weekHtml += `
+                <div style="text-align: center;">
+                    <div style="font-size: 11px; font-weight: bold; color: ${index===0?'#339af0':'#666'};">${dayLabel}</div>
+                    <div style="font-size: 20px; margin: 2px 0;">${getWeatherIcon(w.sky, w.pty)}</div>
+                    <div style="font-size: 12px; font-weight: bold;">${w.temp}°</div>
+                </div>`;
+        });
+        weekListDiv.innerHTML = weekHtml;
+
+        // --- 하단 시간대별 날씨 HTML ---
+        let timeHtml = '';
         for (let i = 6; i <= 21; i++) {
             const hourKey = String(i).padStart(2, '0') + '시';
-            const w = weatherByTime[hourKey];
+            const w = timeWeather[hourKey];
             if (w) {
-                let icon = '☀️'; 
-                if (w.pty === '1' || w.pty === '4') icon = '🌧️'; 
-                else if (w.pty === '2') icon = '🌨️'; 
-                else if (w.pty === '3') icon = '❄️'; 
-                else if (w.sky === '3') icon = '⛅'; 
-                else if (w.sky === '4') icon = '☁️'; 
-
-                html += `
-                    <div style="padding: 8px 0; border: 1px solid #f8f9fa; border-radius: 6px;">
+                timeHtml += `
+                    <div style="padding: 8px 0; border: 1px solid #f1f3f5; border-radius: 6px; background: #fff;">
                         <div style="font-size: 9px; color: #adb5bd;">${hourKey}</div>
-                        <div style="font-size: 18px; margin: 2px 0;">${icon}</div>
+                        <div style="font-size: 18px; margin: 2px 0;">${getWeatherIcon(w.sky, w.pty)}</div>
                         <div style="font-weight: bold; font-size: 11px;">${w.temp}°</div>
                     </div>`;
             }
         }
-        weatherListDiv.innerHTML = html;
+        weatherListDiv.innerHTML = timeHtml;
+
     } catch (e) {
-        weatherListDiv.innerHTML = '<div style="grid-column: span 4; color: red; font-size: 10px;">데이터 오류</div>';
+        weatherListDiv.innerHTML = '<div style="grid-column: span 4; color: red;">날씨 정보를 가져오지 못했습니다.</div>';
     }
 }
 
+function getWeatherIcon(sky, pty) {
+    if (pty === '1' || pty === '4') return '🌧️'; 
+    if (pty === '2') return '🌨️'; 
+    if (pty === '3') return '❄️'; 
+    if (sky === '3') return '⛅'; 
+    if (sky === '4') return '☁️'; 
+    return '☀️';
+}
 // 2. 날씨 팝업 닫기
 function closeWeatherModal() {
     document.getElementById('weatherModal').style.display = 'none';
