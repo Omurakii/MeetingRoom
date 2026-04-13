@@ -669,14 +669,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const val = this.value.trim();
 
             // [추가] "지하철" 입력 시 이스터에그 실행
-            if (val === "지하철") {
-                if (typeof showSubwayEasterEgg === 'function') {
-                    showSubwayEasterEgg();
-                    // 실행 후 입력창 초기화 (선택 사항: 원치 않으시면 아래 줄을 지우세요)
-                    this.value = ""; 
-                }
-            } 
-            else if (val === "사다리") {
+            if (val === "사다리") {
                 currentMode = "ladder"; // 모드 복구
             
                 // [중요] 지하철 입력창으로 바뀌었던 내용을 원래 사다리 UI로 되돌립니다.
@@ -1434,84 +1427,6 @@ function closeWeatherModal() {
 
 // [전역 변수 추가] 현재 모드를 저장하여 사다리 업데이트 방해 방지
 let currentMode = "ladder"; 
-
-function showSubwayEasterEgg() {
-    currentMode = "subway"; // 모드 전환
-    
-    const modal = document.getElementById('ladderModal');
-    const inputArea = document.getElementById('ladderInputs');
-    const lineArea = document.getElementById('ladderLines');
-    const resultArea = document.getElementById('ladderResults');
-    const ladderSetup = document.getElementById('ladderSetup');
-
-    // [강력 조치] 상단 사다리 설정창 강제 제거
-    if (ladderSetup) {
-        ladderSetup.setAttribute('style', 'display: none !important;');
-    }
-
-    // 제목 영역 덮어쓰기
-    inputArea.innerHTML = `
-        <div style="padding:15px; text-align:center; background:#f8f9fa; border-radius:10px 10px 0 0; border-bottom:1px solid #eee;">
-            <div style="font-size: 30px; margin-bottom: 5px;">🚇</div>
-            <h2 style="margin:0; font-size:18px; color:#e76115;">지하철 빠른길 찾기</h2>
-            <p style="margin:5px 0 0; font-size:12px; color:#888;">입력하신 역으로 카카오맵에서 즉시 조회합니다.</p>
-        </div>
-    `;
-
-    // 입력칸 및 화살표
-    lineArea.style.display = "block"; 
-    lineArea.style.height = "auto";
-    lineArea.innerHTML = `
-        <div style="padding:20px; display:flex; flex-direction:column; gap:12px; box-sizing:border-box;">
-            <input type="text" id="st_start" placeholder="출발역 (예: 안국)" 
-                   style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
-            <div style="text-align:center; cursor:pointer;" onclick="swapStations()">
-                <span style="color:#e76115; font-size:22px;">⇅</span>
-            </div>
-            <input type="text" id="st_end" placeholder="도착역 (예: 판교)" 
-                   style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
-        </div>
-    `;
-
-    // 버튼 영역
-    resultArea.innerHTML = `
-        <div style="padding:10px 20px 20px; width:100%; box-sizing:border-box;">
-            <button onclick="goSubwayLink()" 
-                    style="width:100%; padding:15px; background:#e76115; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer;">
-                조회 결과 바로보기 (새 창)
-            </button>
-        </div>
-    `;
-
-    if(modal) modal.style.display = "block";
-}
-
-// 역 바꾸기 기능
-function swapStations() {
-    const s = document.getElementById('st_start');
-    const e = document.getElementById('st_end');
-    if(s && e) {
-        const t = s.value;
-        s.value = e.value;
-        e.value = t;
-    }
-}
-
-// 카카오맵 연동 함수
-function goSubwayLink() {
-    const s = document.getElementById('st_start').value.trim();
-    const e = document.getElementById('st_end').value.trim();
-
-    if(!s || !e) { alert("출발/도착역을 입력하세요."); return; }
-
-    const sName = encodeURIComponent(s.replace(/역$/, "") + "역");
-    const eName = encodeURIComponent(e.replace(/역$/, "") + "역");
-
-    // [최종 URL] target=subway와 #/를 조합하여 조회 화면 진입 확률을 높임
-    const url = `https://map.kakao.com/?sName=${sName}&eName=${eName}&target=subway#/`;
-    
-    window.open(url, '_blank');
-}
 
     
 // 1. 실시간 감시 함수
