@@ -730,6 +730,9 @@ function closeLadder() {
 
 // 3. 사다리 게임 초기화
 function initLadderGame() {
+    // [추가] 지하철 모드(이스터에그) 활성 상태라면 사다리 초기화 로직을 실행하지 않음
+    if (typeof currentMode !== 'undefined' && currentMode === "subway") return;
+
     const memberInput = document.getElementById('memberCount');
     const bombInput = document.getElementById('bombCount');
     if(!memberInput || !bombInput) return;
@@ -746,7 +749,14 @@ function initLadderGame() {
     const lineArea = document.getElementById('ladderLines');
     const resultArea = document.getElementById('ladderResults');
     const ladderBoard = document.getElementById('ladderBoard');
+    const ladderSetup = document.getElementById('ladderSetup');
     
+    // 지하철 모드에서 숨겼던 설정창을 다시 보이게 함 (사다리 모드일 때만)
+    if (ladderSetup) {
+        ladderSetup.style.display = 'block';
+        ladderSetup.style.removeProperty('important'); // 혹시 모를 !important 속성 제거
+    }
+
     inputArea.innerHTML = '';
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
@@ -789,7 +799,6 @@ function initLadderGame() {
     // 초기화 시 가로줄을 미리 생성 (하지만 숨겨진 상태)
     generateAllBridges(n);
 }
-
 // 4. 시작 버튼 클릭
 async function startLadder(e, startIdx) {
     const btn = e.target;
@@ -1492,21 +1501,18 @@ function swapStations() {
     }
 }
 
+// 카카오맵 연동 함수
 function goSubwayLink() {
-    const startVal = document.getElementById('st_start').value.trim();
-    const endVal = document.getElementById('st_end').value.trim();
+    const s = document.getElementById('st_start').value.trim();
+    const e = document.getElementById('st_end').value.trim();
 
-    if(!startVal || !endVal) {
-        alert("출발역과 도착역을 모두 입력해 주세요!");
-        return;
-    }
+    if(!s || !e) { alert("출발/도착역을 입력하세요."); return; }
 
-    // '역' 글자 중복 방지
-    const cleanStart = startVal.replace(/역$/, "") + "역";
-    const cleanEnd = endVal.replace(/역$/, "") + "역";
+    const sName = encodeURIComponent(s.replace(/역$/, "") + "역");
+    const eName = encodeURIComponent(e.replace(/역$/, "") + "역");
 
-    // [변경] 지하철 경로로 바로 연결되는 검색 URL
-    const url = `https://map.kakao.com/?sName=${encodeURIComponent(cleanStart)}&eName=${encodeURIComponent(cleanEnd)}&target=subway`;
+    // [최종 URL] target=subway와 #/를 조합하여 조회 화면 진입 확률을 높임
+    const url = `https://map.kakao.com/?sName=${sName}&eName=${eName}&target=subway#/`;
     
     window.open(url, '_blank');
 }
