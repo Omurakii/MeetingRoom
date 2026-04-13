@@ -267,6 +267,20 @@
     </div>
 </div>
 
+<div id="weatherEasterEgg" style="display:none; gap: 8px; margin-top: 10px;">
+    <button id="btnWeather" onclick="showTodayWeather()" style="flex: 1; padding: 7px 0; font-size: 12px; background: #4dabf7; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+        오늘의 날씨 🌤️
+    </button>
+</div>
+
+<div id="weatherInfo" style="display: none; margin-top: 8px; padding: 12px; border: 1px solid #e9ecef; border-radius: 8px; background: #f8f9fa;">
+    <div id="weatherList" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center;">
+        </div>
+    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dotted #ccc; font-size: 9px; color: #999; text-align: center;">
+        출처: 기상청 단기예보 조회서비스 (공공데이터포털)
+    </div>
+</div>
+
 <div id="ladderModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:4000;">
     <div style="position:relative; top:50%; left:50%; transform:translate(-50%, -50%); width:95%; max-width:850px; background:white; padding:25px; border-radius:15px; display:flex; flex-direction:column; max-height: 95vh; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
         
@@ -617,35 +631,45 @@ const tarotData = [
 ];
 
 document.addEventListener("DOMContentLoaded", () => {
-    // ... 기존 시간 설정 및 Firebase 로직 (SLOTS, syncEndTime, goToday 등) ...
+    // 1. [추가] 초기화 함수들을 실행 시점 최상단으로 이동
+    initStartT();      
+    goToday();         
+    syncEndTime();     
+    startRealtimeUpdate(); 
+    if(typeof cleanupOldData === 'function') cleanupOldData();
 
-    const nameInput = document.getElementById('resName'); // 예약자 성함 입력창
-    const specialButtons = document.getElementById('specialButtons'); // 타로/띠별운세 버튼 div
-    const ladderTrigger = document.getElementById('ladderTrigger'); // 🆕 사다리 모드 버튼
-    const ladderSetup = document.getElementById('ladderSetup');     // 🆕 사다리 설정창
+    // 2. [기존] 입력 감시 로직
+    const nameInput = document.getElementById('resName'); 
+    const specialButtons = document.getElementById('specialButtons'); 
+    const ladderSetup = document.getElementById('ladderSetup');
+    const weatherEasterEgg = document.getElementById('weatherEasterEgg');
 
     if (nameInput) {
         nameInput.addEventListener('input', function() {
             const val = this.value.trim();
 
-            // 1. "사다리"라고 입력했을 때
             if (val === "사다리") {
-                // 사다리 설정창(버튼 포함)을 보여주고, 타로/띠별운세는 숨김
                 if (ladderSetup) ladderSetup.style.display = 'block'; 
-                if (ladderTrigger) ladderTrigger.style.display = 'none'; // 트리거 버튼은 숨기거나 필요시 사용
-                specialButtons.style.display = 'none';
+                if (specialButtons) specialButtons.style.display = 'none';
+                if (weatherEasterEgg) weatherEasterEgg.style.display = 'none';
             } 
-            // 2. 기존 특수 인원(노은영, 고주현, 이동형) 입력 시
+            else if (val === "날씨") {
+                if (weatherEasterEgg) weatherEasterEgg.style.display = 'flex';
+                if (ladderSetup) ladderSetup.style.display = 'none';
+                if (specialButtons) specialButtons.style.display = 'none';
+            }
             else if (["노은영", "고주현", "이동형", "운세"].includes(val)) {
-                specialButtons.style.display = 'flex';
-                if (ladderTrigger) ladderTrigger.style.display = 'none';
-                if (ladderSetup) ladderSetup.style.display = 'none'; // 사다리 설정창 숨김
+                if (specialButtons) specialButtons.style.display = 'flex';
+                if (ladderSetup) ladderSetup.style.display = 'none';
+                if (weatherEasterEgg) weatherEasterEgg.style.display = 'none';
             } 
-            // 3. 그 외 일반 이름일 때
             else {
-                specialButtons.style.display = 'none';
-                if (ladderTrigger) ladderTrigger.style.display = 'none';
-                if (ladderSetup) ladderSetup.style.display = 'none'; // 사다리 설정창 숨김
+                if (specialButtons) specialButtons.style.display = 'none';
+                if (ladderSetup) ladderSetup.style.display = 'none';
+                if (weatherEasterEgg) weatherEasterEgg.style.display = 'none';
+                if (document.getElementById('weatherInfo')) {
+                    document.getElementById('weatherInfo').style.display = 'none';
+                }
             }
         });
     }
@@ -1255,6 +1279,86 @@ function closeGame() {
     if (modal) modal.style.display = 'none';
 }
 
+/**
+ * 기상청 단기예보(getVilageFcst) API 연동 함수
+ */
+async function showTodayWeather() {
+    const weatherInfoDiv = document.getElementById('weatherInfo');
+    const weatherListDiv = document.getElementById('weatherList');
+    
+    // 토글: 열려있으면 닫기
+    if (weatherInfoDiv.style.display === 'block') {
+        weatherInfoDiv.style.display = 'none';
+        return;
+    }
+
+    weatherListDiv.innerHTML = '<div style="grid-column: span 4; font-size:11px; color:#666;">데이터 로딩 중...</div>';
+    weatherInfoDiv.style.display = 'block';
+
+    try {
+        // 이미지에서 확인된 사용자 인증키
+        const serviceKey = 'c832c8aadcd6effb30c9f15849602d3228c5026dbbf0e33c42b844c3ffafc10c'; 
+        
+        const now = new Date();
+        const baseDate = getDS(now).replace(/-/g, ''); 
+        const baseTime = '0200'; // 새벽 2시 발표 데이터 사용
+        const nx = 60; // 서울 좌표
+        const ny = 127;
+
+        const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${serviceKey}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.response.header.resultCode !== '00') {
+            throw new Error(data.response.header.resultMsg);
+        }
+
+        const items = data.response.body.items.item;
+        const weatherByTime = {};
+
+        items.forEach(item => {
+            if (item.fcstDate === baseDate) {
+                const hour = item.fcstTime.substring(0, 2) + '시';
+                if (!weatherByTime[hour]) weatherByTime[hour] = {};
+                if (item.category === 'TMP') weatherByTime[hour].temp = item.fcstValue;
+                if (item.category === 'SKY') weatherByTime[hour].sky = item.fcstValue;
+                if (item.category === 'PTY') weatherByTime[hour].pty = item.fcstValue;
+            }
+        });
+
+        let html = '';
+        // 오전 06시 ~ 밤 21시 루프
+        for (let i = 6; i <= 21; i++) {
+            const hourKey = String(i).padStart(2, '0') + '시';
+            const w = weatherByTime[hourKey];
+            
+            if (w) {
+                let icon = '☀️'; 
+                if (w.pty === '1' || w.pty === '4') icon = '🌧️'; 
+                else if (w.pty === '2') icon = '🌨️'; 
+                else if (w.pty === '3') icon = '❄️'; 
+                else if (w.sky === '3') icon = '⛅'; 
+                else if (w.sky === '4') icon = '☁️'; 
+
+                html += `
+                    <div style="padding: 8px 2px; border: 1px solid #dee2e6; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="color: #adb5bd; font-size: 9px; margin-bottom: 2px;">${hourKey}</div>
+                        <div style="font-size: 18px; margin-bottom: 2px;">${icon}</div>
+                        <div style="font-weight: bold; color: #343a40; font-size: 11px;">${w.temp}°</div>
+                    </div>
+                `;
+            }
+        }
+
+        weatherListDiv.innerHTML = html || '<div style="grid-column: span 4;">데이터가 없습니다.</div>';
+
+    } catch (error) {
+        console.error('Weather Error:', error);
+        weatherListDiv.innerHTML = `<div style="grid-column: span 4; color: #fa5252; font-size: 10px;">날씨 정보를 불러올 수 없습니다.</div>`;
+    }
+}
+
 // 1. 실시간 감시 함수
 function startRealtimeUpdate() {
     db.ref('reservations').on('value', (snapshot) => {
@@ -1282,13 +1386,5 @@ function initStartT() {
     });
 }
 
-// 3. 실행 시점 제어
-window.onload = () => {
-    initStartT();      
-    goToday();         
-    syncEndTime();     
-    startRealtimeUpdate(); 
-    if(typeof cleanupOldData === 'function') cleanupOldData();
-};
 </script> </body>
 </html>
