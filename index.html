@@ -695,7 +695,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// [필수] 가로줄 정보를 저장할 전역 변수 (함수 밖 상단에 위치)
+// [필수] 가로줄 정보를 저장할 전역 변수
 let bridgeData = [];
 
 // 1. 사다리 팝업 열기
@@ -713,23 +713,17 @@ function closeLadder() {
     if(modal) modal.style.display = "none";
 }
 
-// 3. 사다리 게임 초기화 (설정 적용 버튼 클릭 시 실행)
+// 3. 사다리 게임 초기화
 function initLadderGame() {
     const memberInput = document.getElementById('memberCount');
     const bombInput = document.getElementById('bombCount');
-    
     if(!memberInput || !bombInput) return;
 
     const n = parseInt(memberInput.value);
     const m = parseInt(bombInput.value);
 
-    // 유효성 검사
-    if (n < 2 || n > 9) {
-        alert("인원은 2~9명 사이로 설정해주세요.");
-        return;
-    }
-    if (m >= n || m < 1) {
-        alert("꽝 개수는 인원수보다 적어야 합니다.");
+    if (n < 2 || n > 9 || m >= n || m < 1) {
+        alert("인원 설정을 확인해주세요.");
         return;
     }
 
@@ -741,18 +735,15 @@ function initLadderGame() {
     inputArea.innerHTML = '';
     lineArea.innerHTML = '';
     resultArea.innerHTML = '';
-    bridgeData = []; // 가로줄 데이터 초기화
+    bridgeData = []; 
 
     if(ladderBoard) { ladderBoard.scrollLeft = 0; }
 
-    // 결과 데이터 생성 및 셔플
     let results = new Array(n).fill('통과');
     for (let i = 0; i < m; i++) results[i] = '꽝';
     results.sort(() => Math.random() - 0.5);
 
-    // 인원수만큼 요소 생성
     for (let i = 0; i < n; i++) {
-        // [상단] 이름 입력 및 시작 버튼
         const inputDiv = document.createElement('div');
         inputDiv.style.cssText = "text-align:center; flex: 0 0 100px; padding:0 5px;"; 
         inputDiv.innerHTML = `
@@ -761,7 +752,6 @@ function initLadderGame() {
         `;
         inputArea.appendChild(inputDiv);
 
-        // [중앙] 기둥
         const col = document.createElement('div');
         col.className = 'ladder-col';
         col.id = `ladder-col-${i}`;
@@ -769,7 +759,6 @@ function initLadderGame() {
         col.innerHTML = `<div style="position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: #ddd; transform: translateX(-50%); z-index: 0;"></div>`;
         lineArea.appendChild(col);
 
-        // [하단] 결과 카드
         const resDiv = document.createElement('div');
         resDiv.style.cssText = "flex: 0 0 100px; display:flex; justify-content:center;";
         resDiv.innerHTML = `
@@ -782,20 +771,23 @@ function initLadderGame() {
         resultArea.appendChild(resDiv);
     }
     
-    // 초기화 시 가로줄 바로 생성
+    // 초기화 시 가로줄을 미리 생성 (하지만 숨겨진 상태)
     generateAllBridges(n);
 }
 
-// 4. 시작 버튼 클릭 (애니메이션 추적 및 결과 공개)
+// 4. 시작 버튼 클릭
 async function startLadder(e, startIdx) {
     const btn = e.target;
     if(btn.disabled) return;
     
+    // [추가] 시작 버튼 누르면 모든 숨겨진 가로줄을 보이게 함
+    const allBridges = document.querySelectorAll('.ladder-bridge');
+    allBridges.forEach(b => b.style.display = 'block');
+
     btn.disabled = true;
     btn.innerText = "진행중";
     btn.style.background = "#ccc";
 
-    // 추적용 붉은 점 생성
     const dot = document.createElement('div');
     dot.style.cssText = `
         position: absolute; width: 12px; height: 12px; background: red; 
@@ -807,20 +799,16 @@ async function startLadder(e, startIdx) {
     let currentCol = startIdx;
     let currentTop = 0;
 
-    // 경로 추적 로직
     while (currentTop < 100) {
-        // 현재 위치에서 가장 가까운 가로줄 찾기
         const nextBridge = bridgeData.find(b => 
             b.top > currentTop && (b.column === currentCol || b.column === currentCol - 1)
         );
 
         if (nextBridge) {
-            // 수직 이동
             currentTop = nextBridge.top;
             dot.style.top = `${currentTop}%`;
             await new Promise(r => setTimeout(r, 200));
 
-            // 수평 이동 (옆 기둥으로 갈아타기)
             const isRight = (nextBridge.column === currentCol);
             currentCol = isRight ? currentCol + 1 : currentCol - 1;
             
@@ -828,14 +816,12 @@ async function startLadder(e, startIdx) {
             nextColDiv.appendChild(dot); 
             await new Promise(r => setTimeout(r, 200));
         } else {
-            // 바닥 도착
             currentTop = 100;
             dot.style.top = `100%`;
             await new Promise(r => setTimeout(r, 200));
         }
     }
 
-    // 도착지 카드 뒤집기
     const finalCard = document.getElementById(`res-${currentCol}`);
     if(finalCard) finalCard.classList.add('flipped');
     
@@ -843,30 +829,28 @@ async function startLadder(e, startIdx) {
     dot.remove(); 
 }
 
-// 5. 가로줄(다리) 무작위 생성 로직
+// 5. 가로줄 무작위 생성 (처음엔 숨김 처리)
 function generateAllBridges(n) {
     bridgeData = []; 
-    const lineArea = document.getElementById('ladderLines');
-    
     for (let i = 0; i < n - 1; i++) {
         const col = document.getElementById(`ladder-col-${i}`);
         const bridgeCount = Math.floor(Math.random() * 2) + 2; 
         
         for (let j = 0; j < bridgeCount; j++) {
             const topPos = Math.floor(Math.random() * 65) + 15; 
-            
             bridgeData.push({ column: i, top: topPos });
 
             const bridge = document.createElement('div');
             bridge.className = 'ladder-bridge';
+            // [중요] 초기 상태를 display: none으로 설정
             bridge.style.cssText = `
                 position: absolute; top: ${topPos}%; left: 50%;
                 width: 100%; height: 2px; background: #bbb; z-index: 1;
+                display: none; 
             `;
             col.appendChild(bridge);
         }
     }
-    // 높이순 정렬 (위에서부터 차례대로 탐색하기 위함)
     bridgeData.sort((a, b) => a.top - b.top);
 }
 /* --- NEW: 타로 관련 함수 --- */
